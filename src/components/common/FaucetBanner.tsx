@@ -3,7 +3,7 @@ import WaterDropOutlinedIcon from '@mui/icons-material/WaterDropOutlined';
 import { Alert, Box, Snackbar, Typography, useTheme } from '@mui/material';
 import React from 'react';
 import { useWallet } from '../../contexts/wallet';
-import { useHorizonAccount, usePool } from '../../hooks/api';
+import { useHorizonAccount, usePool, usePoolMeta, useTokenMetadataList } from '../../hooks/api';
 import { requiresTrustline } from '../../utils/horizon';
 import { OpaqueButton } from './OpaqueButton';
 
@@ -16,16 +16,19 @@ export const FaucetBanner = ({ poolId }: FaucetBannerParams) => {
   const { faucet, connected } = useWallet();
   const [openCon, setOpenCon] = React.useState(false);
 
-  const { data: pool } = usePool(poolId);
+  const { data: poolMeta } = usePoolMeta(poolId);
+  const { data: pool } = usePool(poolMeta);
   const { data: horizonAccount } = useHorizonAccount();
+  const reserveList = Array.from(pool?.reserves.keys() ?? []);
+  const tokenMetadataList = useTokenMetadataList(reserveList);
 
   let needsFaucet = false;
   if (connected && pool && horizonAccount) {
-    Array.from(pool.reserves.values()).map((reserve) => {
-      if (reserve.tokenMetadata.asset && !needsFaucet) {
-        needsFaucet = requiresTrustline(horizonAccount, reserve.tokenMetadata.asset);
+    for (const { data: tokenMetadata } of tokenMetadataList) {
+      if (tokenMetadata?.asset && !needsFaucet) {
+        needsFaucet = requiresTrustline(horizonAccount, tokenMetadata.asset);
       }
-    });
+    }
   }
 
   const handleSnackClose = () => {

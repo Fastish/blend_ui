@@ -1,5 +1,6 @@
+import { Version } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
-import { SorobanRpc } from '@stellar/stellar-sdk';
+import { rpc } from '@stellar/stellar-sdk';
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { ViewType, useSettings } from '../../contexts';
@@ -26,20 +27,19 @@ import { ValueChange } from '../common/ValueChange';
 export const BackstopExitAnvil = () => {
   const theme = useTheme();
   const { viewType, network } = useSettings();
-  const { walletAddress, txStatus, cometExit, txType, isLoading, createTrustline } = useWallet();
+  const { walletAddress, txStatus, cometExit, txType, isLoading, createTrustlines } = useWallet();
 
   const BLND_ID = BLND_ASSET.contractId(network.passphrase);
   const USDC_ID = USDC_ASSET.contractId(network.passphrase);
 
-  const { data: backstop } = useBackstop();
+  const { data: backstop } = useBackstop(Version.V1);
   const { data: horizonAccount } = useHorizonAccount();
   const { data: blndBalanceRes } = useTokenBalance(BLND_ID, BLND_ASSET, horizonAccount);
   const { data: usdcBalanceRes } = useTokenBalance(USDC_ID, USDC_ASSET, horizonAccount);
   const { data: lpBalanceRes } = useTokenBalance(
     backstop?.backstopToken.id,
     undefined,
-    undefined,
-    backstop !== undefined
+    horizonAccount
   );
 
   const [input, setInput] = useState<{ amount: string; slippage: string }>({
@@ -51,7 +51,7 @@ export const BackstopExitAnvil = () => {
   const [minUSDCOut, setMinUSDCOut] = useState<number>(0);
 
   const [loadingEstimate, setLoadingEstimate] = useState<boolean>(false);
-  const [simResponse, setSimResponse] = useState<SorobanRpc.Api.SimulateTransactionResponse>();
+  const [simResponse, setSimResponse] = useState<rpc.Api.SimulateTransactionResponse>();
   const loading = isLoading || loadingEstimate;
   const decimals = 7;
 
@@ -78,7 +78,7 @@ export const BackstopExitAnvil = () => {
 
   const AddBLNDTrustlineButton = (
     <OpaqueButton
-      onClick={async () => createTrustline(BLND_ASSET)}
+      onClick={async () => createTrustlines([BLND_ASSET])}
       palette={theme.palette.warning}
       sx={{ padding: '6px 24px', margin: '12px auto' }}
     >
@@ -87,7 +87,7 @@ export const BackstopExitAnvil = () => {
   );
   const AddUSDCTrustlineButton = (
     <OpaqueButton
-      onClick={async () => createTrustline(USDC_ASSET)}
+      onClick={async () => createTrustlines([USDC_ASSET])}
       palette={theme.palette.warning}
       sx={{ padding: '6px 24px', margin: '12px auto' }}
     >
@@ -145,7 +145,7 @@ export const BackstopExitAnvil = () => {
       } else {
         return getErrorFromSim(input.amount, decimals, loading, simResponse, undefined);
       }
-    }, [input, loadingEstimate, simResponse]);
+    }, [input, loadingEstimate, simResponse, lpBalance]);
 
   if (backstop === undefined) {
     return <Skeleton />;
@@ -183,7 +183,7 @@ export const BackstopExitAnvil = () => {
         },
         true
       )
-        .then((sim: SorobanRpc.Api.SimulateTransactionResponse | undefined) => {
+        .then((sim: rpc.Api.SimulateTransactionResponse | undefined) => {
           setSimResponse(sim);
         })
         .catch((e) => {

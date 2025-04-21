@@ -1,5 +1,6 @@
 import { Box } from '@mui/material';
 import { useRouter } from 'next/router';
+import { useEffect, useState } from 'react';
 import { useSettings } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
 import { OverlayModalFail } from './OverlayModalFail';
@@ -15,11 +16,13 @@ export const OverlayModal: React.FC = () => {
   const { lastPool } = useSettings();
   const { txStatus, txType, clearLastTx } = useWallet();
 
+  const [showReturnButton, setShowReturnButton] = useState(false);
+
   const display = txStatus !== TxStatus.NONE ? 'flex' : 'none';
 
   const { poolId } = router.query;
 
-  const lastPoolId = poolId ?? lastPool;
+  const lastPoolId = lastPool ? lastPool.id : poolId;
 
   const handleReturn = () => {
     const returnToHomePage = txStatus != TxStatus.FAIL;
@@ -29,12 +32,39 @@ export const OverlayModal: React.FC = () => {
       if (router.route == '/') {
         router.push({ pathname: '/' });
       } else if (router.route.includes('backstop')) {
-        router.push({ pathname: `/backstop`, query: { poolId: lastPoolId } });
+        router.push({
+          pathname: `/backstop`,
+          query: { poolId: lastPoolId },
+        });
+      } else if (router.route.includes('auction')) {
+        router.push({
+          pathname: `/auction`,
+          query: { poolId: lastPoolId },
+        });
       } else {
-        router.push({ pathname: `/dashboard`, query: { poolId: lastPoolId } });
+        router.push({
+          pathname: `/dashboard`,
+          query: { poolId: lastPoolId },
+        });
       }
     }
   };
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    setShowReturnButton(false);
+    if (txStatus === TxStatus.BUILDING || txStatus === TxStatus.SIGNING) {
+      timer = setTimeout(() => {
+        setShowReturnButton(true);
+      }, 6000);
+    }
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [txStatus]);
 
   if (txStatus === TxStatus.NONE) {
     return <></>;
@@ -58,13 +88,25 @@ export const OverlayModal: React.FC = () => {
       }}
     >
       {txStatus === TxStatus.BUILDING && (
-        <OverlayModalText message="Preparing your transaction..." />
+        <OverlayModalText
+          message="Preparing your transaction..."
+          allowReturn={showReturnButton}
+          handleCloseOverlay={handleReturn}
+        />
       )}
       {txStatus === TxStatus.SIGNING && (
-        <OverlayModalText message="Please confirm the transaction in your wallet." />
+        <OverlayModalText
+          message="Please confirm the transaction in your wallet."
+          allowReturn={showReturnButton}
+          handleCloseOverlay={handleReturn}
+        />
       )}
       {txStatus === TxStatus.SUBMITTING && (
-        <OverlayModalText message="Submitting your transaction..." />
+        <OverlayModalText
+          message="Submitting your transaction..."
+          allowReturn={false}
+          handleCloseOverlay={() => {}}
+        />
       )}
       {txStatus === TxStatus.SUCCESS && <OverlayModalSuccess handleCloseOverlay={handleReturn} />}
       {txStatus === TxStatus.FAIL && <OverlayModalFail handleCloseOverlay={handleReturn} />}

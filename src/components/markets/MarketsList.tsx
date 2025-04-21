@@ -33,11 +33,7 @@ export const MarketsList: React.FC<MarketListProps> = ({ pool }) => {
           type: 'alt',
         }}
       >
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ width: headerWidth, marginRight: '12px' }}
-        >
+        <Typography variant="body2" color="text.secondary" sx={{ width: headerWidth }}>
           Asset
         </Typography>
         <Typography
@@ -80,14 +76,14 @@ export const MarketsList: React.FC<MarketListProps> = ({ pool }) => {
               align="center"
               sx={{ width: headerWidth }}
             >
-              APR
+              APY
             </Typography>
           </>
         )}
       </Box>
       {pool.reserves.size > 0 &&
         Array.from(pool.reserves.values()).map((reserve) => (
-          <MarketsListItem key={reserve.assetId} reserve={reserve} />
+          <MarketsListItem key={reserve.assetId} poolId={pool.id} reserve={reserve} />
         ))}
     </Box>
   );

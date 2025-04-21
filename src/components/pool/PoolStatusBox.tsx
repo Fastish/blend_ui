@@ -1,12 +1,13 @@
 import AcUnitIcon from '@mui/icons-material/AcUnit';
 import CheckIcon from '@mui/icons-material/Check';
+import SevereColdIcon from '@mui/icons-material/SevereCold';
 import { Box, BoxProps, Typography, useTheme } from '@mui/material';
 import React from 'react';
 
 export interface PoolStatusBoxProps extends BoxProps {
   type?: 'normal' | 'large' | undefined;
   titleColor?: string | undefined;
-  status?: 'Active' | 'On Ice' | 'Frozen' | undefined;
+  status?: number | undefined;
 }
 
 export const PoolStatusBox: React.FC<PoolStatusBoxProps> = ({
@@ -19,10 +20,22 @@ export const PoolStatusBox: React.FC<PoolStatusBoxProps> = ({
   const textType = type ? type : 'normal';
   const textVariant = textType == 'large' ? 'h2' : 'h4';
   const muiTitleColor = titleColor ? titleColor : 'text.secondary';
-  const poolStatus = status ? status : 'Active';
-  const statusTextColor = poolStatus == 'Active' ? 'backstop.main' : 'secondary.main';
-  const statusBackColor = poolStatus == 'Active' ? 'backstop.opaque' : 'secondary.opaque';
-  const statusIcon = poolStatus == 'Active' ? <CheckIcon /> : <AcUnitIcon />;
+
+  let poolStatus = 'Active';
+  let statusTextColor = 'backstop.main';
+  let statusBackColor = 'backstop.opaque';
+  let statusIcon = <CheckIcon />;
+  if (status !== undefined && status > 3) {
+    poolStatus = 'Frozen';
+    statusTextColor = 'error.main';
+    statusBackColor = 'error.opaque';
+    statusIcon = <SevereColdIcon />;
+  } else if (status !== undefined && status > 1) {
+    poolStatus = 'On-Ice';
+    statusTextColor = 'secondary.main';
+    statusBackColor = 'secondary.opaque';
+    statusIcon = <AcUnitIcon />;
+  }
   return (
     <Box
       sx={{

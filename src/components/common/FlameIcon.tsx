@@ -1,5 +1,5 @@
 import { Box, Tooltip, useTheme } from '@mui/material';
-import Image from 'next/image';
+import { Icon } from './Icon';
 
 export function FlameIcon({
   width = 32,
@@ -11,6 +11,10 @@ export function FlameIcon({
   title?: string;
 }) {
   const theme = useTheme();
+  const size = Math.min(width, height);
+  const iconHeight = Math.floor(size * 0.8);
+  // flame icon width is 77% of the of the height
+  const iconWidth = Math.floor(size * 0.77 * 0.8);
   return (
     <Tooltip
       disableHoverListener={!title}
@@ -27,14 +31,20 @@ export function FlameIcon({
           backgroundColor: theme.palette.primary.opaque,
           color: theme.palette.primary.main,
           borderRadius: '50%',
-          padding: '4px',
           margin: '6px',
-          display: 'flex',
           width,
           height,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        <Image src="/icons/dashboard/flame.svg" height={height} width={width} alt="emmission" />
+        <Icon
+          src="/icons/dashboard/flame.svg"
+          height={`${iconHeight}px`}
+          width={`${iconWidth}px`}
+          alt="emmission"
+        />
       </Box>
     </Tooltip>
   );

@@ -1,20 +1,24 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
-/** @dev @TODO check if is useful or not (why would you want both state and ls unless it affects renders) */
 export const useLocalStorageState = (
   key: string,
   defaultState: string | undefined
-): [string | undefined, (newState: string) => void] => {
-  const [state, setState] = useState<string | undefined>(defaultState);
+): [string | undefined, (newState: string | undefined) => void] => {
+  // Initialize state directly from localStorage or use defaultState
+  const [state, setState] = useState<string | undefined>(() => {
+    if (typeof window === 'undefined') return defaultState;
 
-  useEffect(() => {
-    const stored = localStorage.getItem(key);
-    /** @dev @TODO unhandled json .parse */
-    setState(stored ? JSON.parse(stored) : defaultState);
-  }, [defaultState, key]);
+    try {
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : defaultState;
+    } catch (e) {
+      console.warn(`Error reading ${key} from localStorage:`, e);
+      return defaultState;
+    }
+  });
 
   const setLocalStorageState = useCallback(
-    (newState: string) => {
+    (newState: string | undefined) => {
       const changed = state !== newState;
       if (!changed) {
         return;

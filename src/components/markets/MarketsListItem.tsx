@@ -2,22 +2,28 @@ import { Reserve } from '@blend-capital/blend-sdk';
 import { Box, BoxProps, Typography, useTheme } from '@mui/material';
 import { ViewType, useSettings } from '../../contexts';
 import * as formatter from '../../utils/formatter';
-import { getTokenLinkFromReserve } from '../../utils/token';
+import { LinkBox } from '../common/LinkBox';
 import { TokenHeader } from '../common/TokenHeader';
-import { StackedApr } from './StackedApr';
+import { StackedApy } from './StackedApy';
 
 export interface MarketsListItemProps extends BoxProps {
+  poolId: string;
   reserve: Reserve;
 }
 
-export const MarketsListItem: React.FC<MarketsListItemProps> = ({ reserve, sx, ...props }) => {
+export const MarketsListItem: React.FC<MarketsListItemProps> = ({
+  poolId,
+  reserve,
+  sx,
+  ...props
+}) => {
   const theme = useTheme();
   const { viewType } = useSettings();
 
   const tableNum = viewType == ViewType.REGULAR ? 6 : 3;
   const tableWidth = `${(100 / tableNum).toFixed(2)}%`;
   return (
-    <Box
+    <LinkBox
       sx={{
         type: 'alt',
         display: 'flex',
@@ -31,10 +37,7 @@ export const MarketsListItem: React.FC<MarketsListItemProps> = ({ reserve, sx, .
         },
         ...sx,
       }}
-      onClick={() => {
-        const link = getTokenLinkFromReserve(reserve);
-        window.open(link, '_blank');
-      }}
+      to={{ pathname: '/asset', query: { poolId: poolId, assetId: reserve.assetId } }}
       {...props}
     >
       <Box
@@ -43,11 +46,10 @@ export const MarketsListItem: React.FC<MarketsListItemProps> = ({ reserve, sx, .
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '6px',
           type: 'alt',
         }}
       >
-        <TokenHeader reserve={reserve} sx={{ width: tableWidth, marginRight: '12px' }} />
+        <TokenHeader reserve={reserve} sx={{ width: tableWidth }} />
         <Box
           sx={{
             width: tableWidth,
@@ -104,14 +106,14 @@ export const MarketsListItem: React.FC<MarketsListItemProps> = ({ reserve, sx, .
                 alignItems: 'center',
               }}
             >
-              <StackedApr
-                aprLend={formatter.toPercentage(reserve.supplyApr)}
-                aprBorrow={formatter.toPercentage(reserve.borrowApr)}
-              ></StackedApr>
+              <StackedApy
+                apyLend={formatter.toPercentage(reserve.estSupplyApy)}
+                apyBorrow={formatter.toPercentage(reserve.estBorrowApy)}
+              />
             </Box>
           </>
         )}
       </Box>
-    </Box>
+    </LinkBox>
   );
 };

@@ -1,9 +1,24 @@
-import { PoolClaimArgs, PositionsEstimate } from '@blend-capital/blend-sdk';
+import {
+  ContractErrorType,
+  parseError,
+  PoolClaimArgs,
+  PoolContractV1,
+  PositionsEstimate,
+  Version,
+} from '@blend-capital/blend-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { Box, SxProps, Theme, useTheme } from '@mui/material';
-import { ViewType, useSettings } from '../../contexts';
+import { Box, SxProps, Theme, Tooltip, useTheme } from '@mui/material';
+import { rpc } from '@stellar/stellar-sdk';
+import { useSettings, ViewType } from '../../contexts';
 import { useWallet } from '../../contexts/wallet';
-import { useHorizonAccount, usePool, usePoolOracle, usePoolUser } from '../../hooks/api';
+import {
+  useHorizonAccount,
+  usePool,
+  usePoolMeta,
+  usePoolOracle,
+  usePoolUser,
+  useSimulateOperation,
+} from '../../hooks/api';
 import { toBalance, toPercentage } from '../../utils/formatter';
 import { requiresTrustline } from '../../utils/horizon';
 import { BLND_ASSET } from '../../utils/token_display';
@@ -17,35 +32,56 @@ import { StackedText } from '../common/StackedText';
 import { BorrowCapRing } from './BorrowCapRing';
 
 export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
-  const { viewType } = useSettings();
+  const { viewType, network } = useSettings();
   const theme = useTheme();
-  const { connected, walletAddress, poolClaim, createTrustline } = useWallet();
+  const { connected, walletAddress, poolClaim, createTrustlines, restore } = useWallet();
 
+  const { data: poolMeta } = usePoolMeta(poolId);
   const { data: account, refetch: refechAccount } = useHorizonAccount();
-  const { data: pool } = usePool(poolId);
+  const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
   const { data: userPoolData, refetch: refetchPoolUser } = usePoolUser(pool);
+
+  const { emissions, claimedTokens } =
+    userPoolData && pool
+      ? userPoolData.estimateEmissions(Array.from(pool.reserves.values()))
+      : { emissions: 0, claimedTokens: [] };
+
+  const poolContract = poolId ? new PoolContractV1(poolId) : undefined;
+  const claimArgs: PoolClaimArgs = {
+    from: walletAddress,
+    reserve_token_ids: claimedTokens,
+    to: walletAddress,
+  };
+  const sim_op = poolContract && walletAddress !== '' ? poolContract.claim(claimArgs) : '';
+  const {
+    data: simResult,
+    isLoading,
+    refetch: refetchSim,
+  } = useSimulateOperation(sim_op, claimedTokens.length > 0 && sim_op !== '' && connected);
 
   if (pool === undefined || userPoolData === undefined) {
     return <Skeleton />;
   }
 
-  const { emissions, claimedTokens } = userPoolData.estimateEmissions(pool);
   const hasBLNDTrustline = !requiresTrustline(account, BLND_ASSET);
+  const isRestore =
+    isLoading === false && simResult !== undefined && rpc.Api.isSimulationRestore(simResult);
+  const isError =
+    isLoading === false && simResult !== undefined && rpc.Api.isSimulationError(simResult);
 
   const userEst = poolOracle
     ? PositionsEstimate.build(pool, poolOracle, userPoolData.positions)
     : undefined;
-
   const handleSubmitTransaction = async () => {
-    if (connected && userPoolData) {
+    if (connected && poolMeta && userPoolData) {
       if (claimedTokens.length > 0) {
         let claimArgs: PoolClaimArgs = {
           from: walletAddress,
           reserve_token_ids: claimedTokens,
           to: walletAddress,
         };
-        await poolClaim(poolId, claimArgs, false);
+        await poolClaim(poolMeta, claimArgs, false);
         refetchPoolUser();
       }
     }
@@ -53,13 +89,20 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
 
   async function handleCreateTrustlineClick() {
     if (connected) {
-      await createTrustline(BLND_ASSET);
+      await createTrustlines([BLND_ASSET]);
       refechAccount();
     }
   }
 
+  const handleRestore = async () => {
+    if (simResult && rpc.Api.isSimulationRestore(simResult)) {
+      await restore(simResult);
+      refetchSim();
+    }
+  };
+
   function renderClaimButton() {
-    if (hasBLNDTrustline) {
+    if (hasBLNDTrustline && !isRestore && !isError && poolMeta?.version !== Version.V2) {
       return (
         <CustomButton
           sx={{
@@ -87,58 +130,88 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
         </CustomButton>
       );
     } else {
+      let disabled = false;
+      let buttonText = '';
+      let buttonTooltip = undefined;
+      let onClick = undefined;
+      if (isRestore) {
+        buttonText = 'Restore Data';
+        onClick = handleRestore;
+      } else if (!hasBLNDTrustline) {
+        buttonText = 'Add BLND Trustline';
+        onClick = handleCreateTrustlineClick;
+      } else if (poolMeta?.version === Version.V2) {
+        buttonText = 'V2 Claim Disabled';
+        buttonTooltip = 'Claiming is disabled until the backstop swap to V2 is complete';
+        disabled = true;
+      } else if (isError) {
+        const claimError = parseError(simResult);
+        buttonText = 'Error checking claim';
+        buttonTooltip = 'Erorr while checking claim amount: ' + ContractErrorType[claimError.type];
+        disabled = true;
+      }
       return (
-        <CustomButton
-          sx={{
-            width: '100%',
-            padding: '12px',
-            color: theme.palette.text.primary,
-            backgroundColor: theme.palette.background.paper,
-            '&:hover': {
-              color: theme.palette.warning.main,
-            },
-          }}
-          onClick={handleCreateTrustlineClick}
+        <Tooltip
+          title={buttonTooltip}
+          placement="top-start"
+          enterTouchDelay={0}
+          enterDelay={500}
+          leaveTouchDelay={3000}
         >
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'flex-start',
-              alignItems: 'center',
-              gap: '12px',
-            }}
-          >
-            <Box
+          <Box sx={{ width: '100%' }}>
+            <CustomButton
               sx={{
-                borderRadius: '50%',
-                backgroundColor: theme.palette.warning.opaque,
-                width: '32px',
-                height: '32px',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
+                width: '100%',
+                padding: '12px',
+                color: theme.palette.text.primary,
+                backgroundColor: theme.palette.background.paper,
+                '&:hover': {
+                  color: theme.palette.warning.main,
+                },
               }}
+              disabled={disabled}
+              onClick={onClick}
             >
-              <Icon
-                alt="BLND Token Icon"
-                src="/icons/tokens/blnd-yellow.svg"
+              <Box
                 sx={{
-                  width: '24px',
-                  height: '24px',
+                  display: 'flex',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  gap: '12px',
                 }}
-                color="warning"
-              />
-            </Box>
-            <StackedText
-              title="Claim Pool Emissions"
-              titleColor="inherit"
-              text={`Add BLND Trustline`}
-              textColor="inherit"
-              type="large"
-            />
+              >
+                <Box
+                  sx={{
+                    borderRadius: '50%',
+                    backgroundColor: theme.palette.warning.opaque,
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Icon
+                    alt="BLND Token Icon"
+                    src="/icons/tokens/blnd-yellow.svg"
+                    height="24px"
+                    width="18px"
+                    isCircle={false}
+                  />
+                </Box>
+                <StackedText
+                  title="Claim Pool Emissions"
+                  titleColor="inherit"
+                  text={buttonText}
+                  textColor="inherit"
+                  type="large"
+                  tooltip={buttonTooltip}
+                />
+              </Box>
+              <ArrowForwardIcon fontSize="inherit" />
+            </CustomButton>
           </Box>
-          <ArrowForwardIcon fontSize="inherit" />
-        </CustomButton>
+        </Tooltip>
       );
     }
   }
@@ -161,6 +234,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
           flexDirection: 'row',
           alignItems: 'center',
           width: isRegularViewType ? '50%' : '100%',
+          justifyContent: isRegularViewType ? undefined : 'space-between',
         }}
       >
         <Box
@@ -171,9 +245,9 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
           }}
         >
           <StackedText
-            title="Net APR"
+            title="Net APY"
             titleColor="inherit"
-            text={toPercentage(userEst?.netApr)}
+            text={toPercentage(userEst?.netApy)}
             textColor="inherit"
             type="large"
           />
@@ -189,7 +263,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginLeft: isRegularViewType ? 'auto' : undefined,
+            marginLeft: isRegularViewType ? 'auto' : '18px',
           }}
         >
           <StackedText

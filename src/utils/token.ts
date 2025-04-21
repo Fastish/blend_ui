@@ -1,4 +1,10 @@
-import { Reserve } from '@blend-capital/blend-sdk';
+import { Reserve, TokenMetadata } from '@blend-capital/blend-sdk';
+
+export interface ReserveTokenMetadata extends TokenMetadata {
+  assetId: string;
+  image?: string;
+  domain?: string;
+}
 
 export function getTokenLinkFromReserve(reserve: Reserve | undefined) {
   if (!reserve) {

@@ -4,10 +4,18 @@ import { Box, Typography, useTheme } from '@mui/material';
 import { ViewType, useSettings } from '../../contexts';
 import * as formatter from '../../utils/formatter';
 
+import {
+  useBackstop,
+  usePool,
+  usePoolMeta,
+  usePoolOracle,
+  useTokenMetadata,
+} from '../../hooks/api';
+import { estimateEmissionsApr } from '../../utils/math';
 import { CustomButton } from '../common/CustomButton';
-import { FlameIcon } from '../common/FlameIcon';
 import { LinkBox } from '../common/LinkBox';
 import { PoolComponentProps } from '../common/PoolComponentProps';
+import { RateDisplay } from '../common/RateDisplay';
 import { SectionBase } from '../common/SectionBase';
 import { TokenHeader } from '../common/TokenHeader';
 
@@ -24,11 +32,31 @@ export const BorrowMarketCard: React.FC<BorrowMarketCardProps> = ({
   const theme = useTheme();
   const { viewType } = useSettings();
 
+  const { data: poolMeta } = usePoolMeta(poolId);
+  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: pool } = usePool(poolMeta);
+  const { data: poolOracle } = usePoolOracle(pool);
+  const { data: tokenMetadata } = useTokenMetadata(reserve.assetId);
+  const symbol = tokenMetadata?.symbol ?? formatter.toCompactAddress(reserve.assetId);
+
   const available = reserve.totalSupplyFloat() - reserve.totalLiabilitiesFloat();
 
   const tableNum = viewType === ViewType.REGULAR ? 5 : 3;
   const tableWidth = `${(100 / tableNum).toFixed(2)}%`;
   const liabilityFactor = reserve.getLiabilityFactor();
+
+  const oraclePrice = poolOracle?.getPriceFloat(reserve.assetId);
+  const emissionsPerAsset =
+    reserve && reserve.borrowEmissions !== undefined
+      ? reserve.borrowEmissions.emissionsPerYearPerToken(
+          reserve.totalLiabilities(),
+          reserve.config.decimals
+        )
+      : 0;
+  const emissionApr =
+    backstop && emissionsPerAsset && emissionsPerAsset > 0 && oraclePrice
+      ? estimateEmissionsApr(emissionsPerAsset, backstop.backstopToken, oraclePrice)
+      : undefined;
 
   return (
     <SectionBase
@@ -74,17 +102,14 @@ export const BorrowMarketCard: React.FC<BorrowMarketCardProps> = ({
               alignItems: 'center',
             }}
           >
-            <Typography variant="body1">{formatter.toPercentage(reserve.borrowApr)}</Typography>
-            {reserve.borrowEmissions && (
-              <FlameIcon
-                width={22}
-                height={22}
-                title={formatter.getEmissionTextFromValue(
-                  reserve.emissionsPerYearPerBorrowedAsset(),
-                  reserve.tokenMetadata?.symbol
-                )}
-              />
-            )}
+            <RateDisplay
+              assetSymbol={symbol}
+              assetRate={reserve.estBorrowApy}
+              emissionSymbol="BLND"
+              emissionApr={emissionApr}
+              rateType={'charged'}
+              direction="vertical"
+            />
           </Box>
           {viewType !== ViewType.MOBILE && (
             <Box

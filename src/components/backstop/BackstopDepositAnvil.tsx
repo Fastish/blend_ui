@@ -1,11 +1,11 @@
 import {
-  BackstopContract,
+  BackstopContractV1,
   BackstopPoolUserEst,
   parseResult,
   PoolBackstopActionArgs,
 } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
-import { SorobanRpc } from '@stellar/stellar-sdk';
+import { Horizon, rpc } from '@stellar/stellar-sdk';
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
@@ -14,6 +14,7 @@ import {
   useBackstop,
   useBackstopPool,
   useBackstopPoolUser,
+  usePoolMeta,
   useTokenBalance,
 } from '../../hooks/api';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
@@ -37,18 +38,20 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
   const { viewType } = useSettings();
   const { connected, walletAddress, backstopDeposit, txStatus, txType, isLoading } = useWallet();
 
-  const { data: backstop } = useBackstop();
-  const { data: backstopPoolData } = useBackstopPool(poolId);
-  const { data: backstopUserPoolData } = useBackstopPoolUser(poolId);
+  const { data: poolMeta } = usePoolMeta(poolId);
+  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstopPoolData } = useBackstopPool(poolMeta);
+  const { data: backstopUserPoolData } = useBackstopPoolUser(poolMeta);
   const { data: lpTokenRes } = useTokenBalance(
-    backstop?.config.backstopTkn,
+    backstop?.config?.backstopTkn,
     undefined,
-    undefined,
-    backstop !== undefined
+    // passing undefined will cause the token balance to not load, and the horizon
+    // account is not needed for getting the LP token balance
+    {} as Horizon.AccountResponse
   );
 
   const [toDeposit, setToDeposit] = useState<string>('');
-  const [simResponse, setSimResponse] = useState<SorobanRpc.Api.SimulateTransactionResponse>();
+  const [simResponse, setSimResponse] = useState<rpc.Api.SimulateTransactionResponse>();
   const [parsedSimResult, setParsedSimResult] = useState<bigint>();
   const [loadingEstimate, setLoadingEstimate] = useState<boolean>(false);
   if (txStatus === TxStatus.SUCCESS && txType === TxType.CONTRACT && Number(toDeposit) != 0) {
@@ -94,17 +97,17 @@ export const BackstopDepositAnvil: React.FC<PoolComponentProps> = ({ poolId }) =
   };
 
   const handleSubmitTransaction = async (sim: boolean) => {
-    if (toDeposit && connected) {
+    if (toDeposit && connected && poolMeta) {
       const depositArgs: PoolBackstopActionArgs = {
         from: walletAddress,
         pool_address: poolId,
         amount: scaleInputToBigInt(toDeposit, 7),
       };
-      const response = await backstopDeposit(depositArgs, sim);
+      const response = await backstopDeposit(poolMeta, depositArgs, sim);
       if (response) {
         setSimResponse(response);
-        if (SorobanRpc.Api.isSimulationSuccess(response)) {
-          const result = parseResult(response, BackstopContract.parsers.deposit);
+        if (rpc.Api.isSimulationSuccess(response)) {
+          const result = parseResult(response, BackstopContractV1.parsers.deposit);
           setParsedSimResult(result);
         }
       }

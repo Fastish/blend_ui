@@ -4,9 +4,10 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    unoptimized: true, // Note: Required for static builds
+    unoptimized: true,
   },
   trailingSlash: true,
+  output: 'export',
 };
 
-export default nextConfig
+export default nextConfig;

@@ -1,5 +1,4 @@
 /// Information display formatting utils
-import BigNumber from 'bignumber.js';
 
 const POSTFIXES = ['', 'k', 'M', 'B', 'T', 'P', 'E', 'Z', 'Y'];
 
@@ -29,28 +28,39 @@ export function toBalance(
   }
 
   let visibleDecimals = 0;
-  if (amount === 0) {
+  if (numValue === 0) {
     visibleDecimals = 0;
   } else {
-    if (amount > 1) {
+    if (numValue >= 10) {
       visibleDecimals = 2;
     } else {
-      visibleDecimals = decimals ?? 7;
+      visibleDecimals = Math.min(decimals ?? 7, 7);
     }
+  }
+
+  if (numValue === 0) {
+    return '0';
+  }
+
+  const absValue = Math.abs(numValue);
+  if (absValue < 10) {
+    return numValue.toFixed(visibleDecimals);
+  } else if (absValue < 10000) {
+    return numValue.toFixed(2);
   }
 
   const minValue = 10 ** -(visibleDecimals as number);
   const isSmallerThanMin = numValue !== 0 && Math.abs(numValue) < Math.abs(minValue);
   let adjAmount = isSmallerThanMin ? minValue : numValue;
 
-  const bnValue = new BigNumber(numValue);
+  const bnValue = numValue;
 
   const integerPlaces = bnValue.toFixed(0).length;
   const postfixIndex = Math.min(
     Math.floor(integerPlaces ? (integerPlaces - 1) / 3 : 0),
     POSTFIXES.length - 1
   );
-  adjAmount = bnValue.shiftedBy(-3 * postfixIndex).toNumber();
+  adjAmount = numValue / Math.pow(10, 3 * postfixIndex);
 
   const formattedStr = new Intl.NumberFormat('en-US', {
     maximumFractionDigits: visibleDecimals,
@@ -62,17 +72,18 @@ export function toBalance(
 /**
  * Format a number as a percentage
  * @param rate - The number expressed in decimal
+ * @param decimals - The number of decimals to display (default is 2)
  * @returns the number as a percentage
  */
-export function toPercentage(rate: number | undefined): string {
+export function toPercentage(rate: number | undefined, decimals = 2): string {
   if (rate == undefined) {
     return '--';
   }
 
   const adjRate = rate * 100;
   const formattedStr = new Intl.NumberFormat('en-US', {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 2,
+    maximumFractionDigits: decimals,
+    minimumFractionDigits: decimals,
   }).format(adjRate);
   return `${formattedStr}%`;
 }
@@ -84,6 +95,8 @@ export function toPercentage(rate: number | undefined): string {
 export function toCompactAddress(address: string | undefined): string {
   if (!address) {
     return '';
+  } else if (address.length < 10) {
+    return address;
   }
 
   return `${address.substring(0, 4)}...${address.substring(address.length - 4, address.length)}`;
@@ -109,5 +122,5 @@ export function toTimeSpan(secondsLeft: number): string {
 }
 
 export function getEmissionTextFromValue(value: number, symbol: string) {
-  return ` This position earns ${toBalance(value, 7)} BLND a year per ${symbol}`;
+  return `This position earns an additional ${toBalance(value, 7)} BLND per year per ${symbol}.`;
 }

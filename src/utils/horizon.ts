@@ -1,15 +1,6 @@
 //! Collection of utility functions to help with Horizon data
 
-import { Reserve } from '@blend-capital/blend-sdk';
 import { Asset, Horizon } from '@stellar/stellar-sdk';
-
-export function requiresTrustlineReserve(
-  account: Horizon.AccountResponse | undefined,
-  reserve: Reserve | undefined
-): boolean {
-  let asset = reserve?.tokenMetadata?.asset;
-  return requiresTrustline(account, asset);
-}
 
 export function requiresTrustline(
   account: Horizon.AccountResponse | undefined,
@@ -54,7 +45,7 @@ export function getAssetReserve(
       stellar_reserve_amount += Number(balanceLine?.selling_liabilities);
     }
     if (asset.isNative()) {
-      stellar_reserve_amount += 1.5 + 0.5 * account.subentry_count; // add 1 XLM for gas headroom
+      stellar_reserve_amount += 11 + 0.5 * account.subentry_count; // add 10.5 XLM for gas headroom
     }
   }
   return stellar_reserve_amount;

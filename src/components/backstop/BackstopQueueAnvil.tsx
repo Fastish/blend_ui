@@ -1,5 +1,5 @@
 import {
-  BackstopContract,
+  BackstopContractV1,
   BackstopPoolUserEst,
   FixedMath,
   parseResult,
@@ -7,12 +7,12 @@ import {
   Q4W,
 } from '@blend-capital/blend-sdk';
 import { Box, Typography, useTheme } from '@mui/material';
-import { SorobanRpc } from '@stellar/stellar-sdk';
+import { rpc } from '@stellar/stellar-sdk';
 import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import { useSettings, ViewType } from '../../contexts';
 import { TxStatus, TxType, useWallet } from '../../contexts/wallet';
-import { useBackstop, useBackstopPool, useBackstopPoolUser } from '../../hooks/api';
+import { useBackstop, useBackstopPool, useBackstopPoolUser, usePoolMeta } from '../../hooks/api';
 import { RPC_DEBOUNCE_DELAY, useDebouncedState } from '../../hooks/debounce';
 import { toBalance } from '../../utils/formatter';
 import { getErrorFromSim, SubmitError } from '../../utils/txSim';
@@ -35,15 +35,17 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
   const { connected, walletAddress, backstopQueueWithdrawal, txType, txStatus, isLoading } =
     useWallet();
 
-  const { data: backstop } = useBackstop();
-  const { data: backstopPoolData } = useBackstopPool(poolId);
-  const { data: backstopUserData } = useBackstopPoolUser(poolId);
+  const { data: poolMeta } = usePoolMeta(poolId);
+  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstopPoolData } = useBackstopPool(poolMeta);
+  const { data: backstopUserData } = useBackstopPoolUser(poolMeta);
 
   const [toQueue, setToQueue] = useState<string>('');
   const [toQueueShares, setToQueueShares] = useState<bigint>(BigInt(0));
-  const [simResponse, setSimResponse] = useState<SorobanRpc.Api.SimulateTransactionResponse>();
+  const [simResponse, setSimResponse] = useState<rpc.Api.SimulateTransactionResponse>();
   const [parsedSimResult, setParsedSimResult] = useState<Q4W>();
   const [loadingEstimate, setLoadingEstimate] = useState<boolean>(false);
+  const [sendingTx, setSendingTx] = useState<boolean>(false);
   const loading = isLoading || loadingEstimate;
   const decimals = 7;
 
@@ -57,7 +59,11 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
   if (txStatus === TxStatus.SUCCESS && txType === TxType.CONTRACT && Number(toQueue) != 0) {
     setToQueue('');
   }
-
+  if ((txStatus === TxStatus.FAIL || txStatus === TxStatus.SUCCESS) && sendingTx) {
+    setSendingTx(false);
+  }
+  const displayTxOverview =
+    txStatus === TxStatus.SUCCESS || txStatus === TxStatus.NONE || sendingTx;
   const { isError, isSubmitDisabled, isMaxDisabled, reason, disabledType, extraContent } =
     useMemo(() => {
       if (toQueue !== '' && toQueueShares === BigInt(0)) {
@@ -112,17 +118,17 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
   };
 
   const handleSubmitTransaction = async (sim: boolean) => {
-    if (connected && toQueueShares !== BigInt(0)) {
+    if (connected && poolMeta && toQueueShares !== BigInt(0)) {
       let depositArgs: PoolBackstopActionArgs = {
         from: walletAddress,
         pool_address: poolId,
         amount: toQueueShares,
       };
-      let response = await backstopQueueWithdrawal(depositArgs, sim);
+      let response = await backstopQueueWithdrawal(poolMeta, depositArgs, sim);
       if (response) {
         setSimResponse(response);
-        if (SorobanRpc.Api.isSimulationSuccess(response)) {
-          setParsedSimResult(parseResult(response, BackstopContract.parsers.queueWithdrawal));
+        if (rpc.Api.isSimulationSuccess(response)) {
+          setParsedSimResult(parseResult(response, BackstopContractV1.parsers.queueWithdrawal));
         }
       }
     }
@@ -172,7 +178,10 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
             </InputBar>
             {viewType !== ViewType.MOBILE && (
               <OpaqueButton
-                onClick={() => handleSubmitTransaction(false)}
+                onClick={() => {
+                  handleSubmitTransaction(false);
+                  setSendingTx(true);
+                }}
                 palette={theme.palette.backstop}
                 sx={{ minWidth: '108px', padding: '6px', display: 'flex' }}
                 disabled={isSubmitDisabled}
@@ -187,7 +196,10 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
             </Typography>
             {viewType === ViewType.MOBILE && (
               <OpaqueButton
-                onClick={() => handleSubmitTransaction(false)}
+                onClick={() => {
+                  handleSubmitTransaction(false);
+                  setSendingTx(true);
+                }}
                 palette={theme.palette.backstop}
                 sx={{ minWidth: '108px', padding: '6px', display: 'flex', width: '100%' }}
                 disabled={isSubmitDisabled}
@@ -197,7 +209,7 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
             )}
           </Box>
         </Box>
-        {!isError && (
+        {!isError && displayTxOverview && (
           <TxOverview>
             <>
               <Value title="Amount to queue" value={`${toQueue ?? '0'} BLND-USDC LP`} />

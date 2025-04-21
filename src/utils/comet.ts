@@ -1,4 +1,4 @@
-import { BackstopToken } from '@blend-capital/blend-sdk';
+import { BackstopToken, FixedMath } from '@blend-capital/blend-sdk';
 import { Contract, nativeToScVal, xdr } from '@stellar/stellar-sdk';
 
 /**
@@ -13,6 +13,29 @@ export function estJoinPool(
   let blnd = (Number(pool_data.blnd) / 1e7) * ratio * (1 + maxSlippage);
   let usdc = (Number(pool_data.usdc) / 1e7) * ratio * (1 + maxSlippage);
   return { blnd, usdc };
+}
+
+/**
+ * Estimate the comet lp shares that will be minted during a single sided deposit
+ * @param token - The token being deposited
+ * @param backstopToken - The backstop token
+ * @param amount - The amount being deposited
+ */
+export function estSingleSidedDeposit(
+  token: 'blnd' | 'usdc',
+  backstopToken: BackstopToken,
+  amount: bigint
+): number {
+  let weight = token === 'blnd' ? 0.8 : 0.2;
+  let swapFee = 0.03;
+  let weightedFee = (1.0 - weight) * swapFee;
+  let amountNetFees = FixedMath.toFloat(amount, 7) * (1.0 - weightedFee);
+  let ratio =
+    1.0 +
+    amountNetFees /
+      FixedMath.toFloat(token === 'blnd' ? backstopToken.blnd : backstopToken.usdc, 7);
+  let weightedRatio = ratio ** weight - 1;
+  return FixedMath.toFloat(backstopToken.shares, 7) * weightedRatio;
 }
 
 /**

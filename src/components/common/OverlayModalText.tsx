@@ -1,11 +1,19 @@
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, Typography, useTheme } from '@mui/material';
 import CircularProgress from '@mui/material/CircularProgress';
+import { OpaqueButton } from './OpaqueButton';
 
 export interface OverlayModalTextProps {
   message: string;
+  allowReturn: boolean;
+  handleCloseOverlay: () => void;
 }
 
-export const OverlayModalText: React.FC<OverlayModalTextProps> = ({ message }) => {
+export const OverlayModalText: React.FC<OverlayModalTextProps> = ({
+  message,
+  allowReturn,
+  handleCloseOverlay,
+}) => {
   const theme = useTheme();
 
   return (
@@ -38,6 +46,25 @@ export const OverlayModalText: React.FC<OverlayModalTextProps> = ({ message }) =
         <Typography variant="h2" sx={{ margin: '12px' }}>
           {message}
         </Typography>
+        {allowReturn && (
+          <OpaqueButton
+            onClick={handleCloseOverlay}
+            palette={theme.palette.primary}
+            sx={{
+              margin: '6px',
+              padding: '6px',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <Box sx={{ padding: '6px', display: 'flex', flexDirection: 'row', height: '30px' }}>
+              <Box sx={{ paddingRight: '12px', lineHeight: '100%' }}>Return</Box>
+              <Box>
+                <ArrowForwardIcon fontSize="inherit" />
+              </Box>
+            </Box>
+          </OpaqueButton>
+        )}
       </Box>
     </Box>
   );

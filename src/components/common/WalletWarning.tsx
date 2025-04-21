@@ -15,7 +15,9 @@ export const WalletWarning = () => {
   const [openCon, setOpenCon] = React.useState(false);
   const [openError, setOpenError] = React.useState(false);
 
-  const { refetch: refetchAccount, isError: isError } = useHorizonAccount();
+  const { data: account, refetch: refetchAccount } = useHorizonAccount();
+
+  const notFound = account === undefined;
 
   const handleConnectWallet = (successful: boolean) => {
     if (successful) {
@@ -31,19 +33,19 @@ export const WalletWarning = () => {
   };
 
   useEffect(() => {
-    if (connected && isError === true) {
+    if (connected && notFound === true) {
       refetchAccount();
       const refreshInterval = setInterval(async () => {
         await refetchAccount();
       }, 3 * 1000);
       return () => clearInterval(refreshInterval);
     }
-  }, [refetchAccount, connected, isError, walletAddress]);
+  }, [refetchAccount, connected, notFound, walletAddress]);
 
   return (
     <>
       {connected ? (
-        isError === true ? (
+        notFound === true ? (
           <Row
             sx={{
               background: theme.palette.warning.opaque,

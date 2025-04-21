@@ -4,14 +4,17 @@ import { Box, Link, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { BorrowAnvil } from '../components/borrow/BorrowAnvil';
-import { FlameIcon } from '../components/common/FlameIcon';
 import { GoBackHeader } from '../components/common/GoBackHeader';
-import { ReserveDropdown } from '../components/common/ReserveDropdown';
+import { RateDisplay } from '../components/common/RateDisplay';
+import { ReserveDetailsBar } from '../components/common/ReserveDetailsBar';
 import { Row } from '../components/common/Row';
 import { Section, SectionSize } from '../components/common/Section';
 import { StackedText } from '../components/common/StackedText';
-import { usePool } from '../hooks/api';
-import { getEmissionTextFromValue, toBalance, toPercentage } from '../utils/formatter';
+import { NotPoolBar } from '../components/pool/NotPoolBar';
+import { useBackstop, usePool, usePoolMeta, usePoolOracle, useTokenMetadata } from '../hooks/api';
+import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
+import { toBalance, toCompactAddress, toPercentage } from '../utils/formatter';
+import { estimateEmissionsApr } from '../utils/math';
 import { getTokenLinkFromReserve } from '../utils/token';
 
 const Borrow: NextPage = () => {
@@ -22,25 +25,43 @@ const Borrow: NextPage = () => {
   const safePoolId = typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
   const safeAssetId = typeof assetId == 'string' && /^[0-9A-Z]{56}$/.test(assetId) ? assetId : '';
 
-  const { data: pool } = usePool(safePoolId);
+  const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
+  const { data: pool } = usePool(poolMeta);
+  const { data: poolOracle } = usePoolOracle(pool);
+  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: tokenMetadata } = useTokenMetadata(safeAssetId);
+
   const reserve = pool?.reserves.get(safeAssetId);
+  const tokenSymbol = tokenMetadata?.symbol ?? toCompactAddress(safeAssetId);
 
   const maxUtilFloat = reserve ? FixedMath.toFloat(BigInt(reserve.config.max_util), 7) : 1;
   const totalSupplied = reserve ? reserve.totalSupplyFloat() : 0;
   const availableToBorrow = reserve
     ? totalSupplied * maxUtilFloat - reserve.totalLiabilitiesFloat()
     : 0;
+  const oraclePrice = reserve ? poolOracle?.getPriceFloat(reserve.assetId) : 0;
+  const emissionsPerAsset =
+    reserve && reserve.borrowEmissions !== undefined
+      ? reserve.borrowEmissions.emissionsPerYearPerToken(
+          reserve.totalLiabilities(),
+          reserve.config.decimals
+        )
+      : 0;
+  const emissionApr =
+    backstop && emissionsPerAsset > 0 && oraclePrice
+      ? estimateEmissionsApr(emissionsPerAsset, backstop.backstopToken, oraclePrice)
+      : undefined;
+
+  if (poolError?.message === NOT_BLEND_POOL_ERROR_MESSAGE) {
+    return <NotPoolBar poolId={safePoolId} />;
+  }
 
   return (
     <>
       <Row>
-        <GoBackHeader name={pool?.config.name} />
+        <GoBackHeader poolId={safePoolId} />
       </Row>
-      <Row>
-        <Section width={SectionSize.FULL} sx={{ marginTop: '12px', marginBottom: '12px' }}>
-          <ReserveDropdown action="borrow" poolId={safePoolId} activeReserveId={safeAssetId} />
-        </Section>
-      </Row>
+      <ReserveDetailsBar action="borrow" poolId={safePoolId} activeReserveId={safeAssetId} />
       <Row>
         <Section width={SectionSize.FULL} sx={{ padding: '12px' }}>
           <Box
@@ -80,7 +101,7 @@ const Borrow: NextPage = () => {
                 }}
               >
                 <Typography variant="h5" sx={{ color: theme.palette.text.secondary }}>
-                  {reserve?.tokenMetadata?.symbol ?? ''}
+                  {tokenSymbol}
                 </Typography>
                 <OpenInNewIcon fontSize="inherit" />
               </Link>
@@ -94,43 +115,42 @@ const Borrow: NextPage = () => {
           style={{ display: 'flex', justifyContent: 'space-between' }}
         >
           <StackedText
-            title="Borrow APR"
+            title="Borrow APY"
             text={
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                {toPercentage(reserve?.borrowApr)}{' '}
-                {reserve?.borrowEmissions && (
-                  <FlameIcon
-                    width={22}
-                    height={22}
-                    title={getEmissionTextFromValue(
-                      reserve.emissionsPerYearPerBorrowedAsset(),
-                      reserve?.tokenMetadata?.symbol || 'token'
-                    )}
-                  />
-                )}
-              </div>
+              reserve ? (
+                <RateDisplay
+                  assetSymbol={tokenSymbol}
+                  assetRate={reserve.estBorrowApy}
+                  emissionSymbol={'BLND'}
+                  emissionApr={emissionApr}
+                  rateType={'charged'}
+                  direction={'horizontal'}
+                />
+              ) : (
+                ''
+              )
             }
             sx={{ padding: '6px' }}
+            tooltip="The estimated compounding interest rate charged for a borrowed position. This rate will fluctuate based on the market conditions, and accrues to the borrowed position automatically."
           ></StackedText>
         </Section>
         <Section width={SectionSize.THIRD}>
           <StackedText
-            title="Liability factor"
+            title="Liability Factor"
             text={toPercentage(reserve?.getLiabilityFactor())}
             sx={{ width: '100%', padding: '6px' }}
+            tooltip="The percent of this asset's value subtracted from your borrow capacity."
           ></StackedText>
         </Section>
         <Section width={SectionSize.THIRD}>
           <StackedText
-            title="Total borrowed"
+            title="Total Borrowed"
             text={toBalance(reserve?.totalLiabilitiesFloat())}
             sx={{ width: '100%', padding: '6px' }}
           ></StackedText>
         </Section>
       </Row>
-      <Row>
-        <BorrowAnvil poolId={safePoolId} assetId={safeAssetId} />
-      </Row>
+      <BorrowAnvil poolId={safePoolId} assetId={safeAssetId} />
     </>
   );
 };

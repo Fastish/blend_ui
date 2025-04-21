@@ -1,7 +1,7 @@
 import { Box, BoxProps, Typography } from '@mui/material';
 
 import { Reserve } from '@blend-capital/blend-sdk';
-import { useTokenMetadataFromToml } from '../../hooks/api';
+import { useTokenMetadata } from '../../hooks/api';
 import { toCompactAddress } from '../../utils/formatter';
 import { TokenIcon } from './TokenIcon';
 
@@ -18,15 +18,15 @@ export const TokenHeader: React.FC<TokenHeaderProps> = ({
   iconSize,
   ...props
 }) => {
-  const { data: tokenMetadata } = useTokenMetadataFromToml(reserve);
+  const { data: tokenMetadata } = useTokenMetadata(reserve.assetId);
 
   if (tokenMetadata === undefined) {
     return <></>;
   }
 
-  const domain =
-    tokenMetadata?.domain === undefined || tokenMetadata.domain === ''
-      ? toCompactAddress(tokenMetadata.issuer)
+  let domain =
+    tokenMetadata.domain === undefined || tokenMetadata.domain === ''
+      ? toCompactAddress(tokenMetadata.asset?.issuer ?? tokenMetadata.assetId)
       : tokenMetadata.domain;
   return (
     <Box
@@ -42,7 +42,9 @@ export const TokenHeader: React.FC<TokenHeaderProps> = ({
     >
       <TokenIcon
         reserve={reserve}
-        sx={{ width: iconSize || '32px', height: iconSize || '32px', marginRight: '6px' }}
+        height={iconSize || '32px'}
+        width={iconSize || '32px'}
+        sx={{ marginRight: '6px' }}
       />
       <Box
         sx={{
@@ -52,7 +54,7 @@ export const TokenHeader: React.FC<TokenHeaderProps> = ({
           alignItems: 'flex-start',
         }}
       >
-        <Typography variant="body1">{tokenMetadata.code}</Typography>
+        <Typography variant="body1">{tokenMetadata.symbol}</Typography>
         {!hideDomain && (
           <Typography variant="body2" color="text.secondary">
             {domain}

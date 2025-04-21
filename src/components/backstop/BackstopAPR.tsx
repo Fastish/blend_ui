@@ -1,19 +1,20 @@
 import { BackstopPoolEst, FixedMath, PoolEstimate } from '@blend-capital/blend-sdk';
-import { HelpOutline } from '@mui/icons-material';
-import { Box, Tooltip, Typography } from '@mui/material';
-import { useBackstop, useBackstopPool, usePool, usePoolOracle } from '../../hooks/api';
-import { getEmissionTextFromValue, toPercentage } from '../../utils/formatter';
-import { FlameIcon } from '../common/FlameIcon';
+import { useBackstop, useBackstopPool, usePool, usePoolMeta, usePoolOracle } from '../../hooks/api';
+import { estSingleSidedDeposit } from '../../utils/comet';
 import { PoolComponentProps } from '../common/PoolComponentProps';
+import { RateDisplay } from '../common/RateDisplay';
+import { StackedText } from '../common/StackedText';
 
-export const BackstopAPR: React.FC<PoolComponentProps> = ({ poolId, sx, ...props }) => {
-  const { data: pool } = usePool(poolId);
+export const BackstopAPR: React.FC<PoolComponentProps> = ({ poolId }) => {
+  const { data: poolMeta } = usePoolMeta(poolId);
+  const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
-  const { data: backstop } = useBackstop();
-  const { data: backstopPoolData } = useBackstopPool(poolId);
+  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstopPoolData } = useBackstopPool(poolMeta);
 
   let estBackstopApr: number | undefined = undefined;
-  let backstopEmissionsPerDayPerLpToken: number | undefined = undefined;
+  let backstopEmissionsApr: number | undefined = undefined;
+
   if (
     pool !== undefined &&
     poolOracle !== undefined &&
@@ -26,67 +27,36 @@ export const BackstopAPR: React.FC<PoolComponentProps> = ({ poolId, sx, ...props
       backstopPoolData.poolBalance
     );
     estBackstopApr =
-      (FixedMath.toFloat(BigInt(pool.config.backstopRate), 7) *
-        poolEst.avgBorrowApr *
+      (FixedMath.toFloat(BigInt(pool.metadata.backstopRate), 7) *
+        poolEst.avgBorrowApy *
         poolEst.totalBorrowed) /
       backstopPoolEst.totalSpotValue;
-    backstopEmissionsPerDayPerLpToken = backstopPoolData.emissions
-      ? backstopPoolData.emissionPerYearPerBackstopToken()
-      : 0;
+    backstopEmissionsApr = estSingleSidedDeposit(
+      'blnd',
+      backstop.backstopToken,
+      FixedMath.toFixed(backstopPoolData.emissionPerYearPerBackstopToken(), 7)
+    );
   }
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'flex-start',
-        padding: '6px',
-      }}
-    >
-      <Tooltip
-        title="Estimated APR based on pool interest sharing."
-        placement="top"
-        enterTouchDelay={0}
-        enterDelay={500}
-        leaveTouchDelay={3000}
-      >
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'flex-start',
-            alignItems: 'flex-end',
-            ...sx,
-          }}
-        >
-          <Typography variant="body2" color={'text.secondary'}>
-            {'Backstop APR'}
-          </Typography>
-          <HelpOutline sx={{ marginLeft: '6px', width: '15px', color: 'text.secondary' }} />
-        </Box>
-      </Tooltip>
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'row',
-          justifyContent: 'flex-start',
-          alignItems: 'center',
-          ...sx,
-        }}
-      >
-        <Typography variant="h4" color={'text.primary'}>
-          {toPercentage(estBackstopApr)}
-        </Typography>
-        {backstopEmissionsPerDayPerLpToken && backstopEmissionsPerDayPerLpToken > 0 && (
-          <FlameIcon
-            height={22}
-            width={22}
-            title={getEmissionTextFromValue(backstopEmissionsPerDayPerLpToken, 'BLND-USDC LP')}
+    <StackedText
+      title="Backstop APR"
+      text={
+        estBackstopApr !== undefined ? (
+          <RateDisplay
+            assetSymbol={'BLND-USDC LP'}
+            assetRate={estBackstopApr}
+            emissionSymbol={'BLND-USDC LP'}
+            emissionApr={backstopEmissionsApr}
+            rateType={'earned'}
+            direction={'horizontal'}
           />
-        )}
-      </Box>
-    </Box>
+        ) : (
+          ''
+        )
+      }
+      sx={{ width: '100%', padding: '6px' }}
+      tooltip="Estimated APR based on pool interest sharing."
+    ></StackedText>
   );
 };

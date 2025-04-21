@@ -1,8 +1,9 @@
-import { Network } from '@blend-capital/blend-sdk';
+import { Network, Version } from '@blend-capital/blend-sdk';
 import { useMediaQuery, useTheme } from '@mui/material';
-import { SorobanRpc } from '@stellar/stellar-sdk';
-import React, { useContext, useState } from 'react';
+import { Horizon, rpc } from '@stellar/stellar-sdk';
+import React, { useContext, useMemo, useState } from 'react';
 import { useLocalStorageState } from '../hooks';
+import { PoolMeta } from '../hooks/types';
 
 const DEFAULT_RPC = process.env.NEXT_PUBLIC_RPC_URL || 'https://soroban-testnet.stellar.org';
 const DEFAULT_HORIZON =
@@ -19,22 +20,33 @@ export enum ViewType {
 export interface TrackedPool {
   id: string;
   name: string;
+  version: Version;
+}
+
+export interface NetworkUrls {
+  horizonUrl: string;
+  rpc: string;
+  opts?: Horizon.Server.Options;
 }
 
 export interface ISettingsContext {
   viewType: ViewType;
   network: Network & { horizonUrl: string };
-  setNetwork: (rpcUrl: string, newHorizonUrl: string, opts?: SorobanRpc.Server.Options) => void;
-  getRPCServer: () => SorobanRpc.Server;
-  getHorizonServer: () => SorobanRpc.Server;
-  lastPool: string | undefined;
-  setLastPool: (poolId: string) => void;
+  setNetwork: (rpcUrl: string, newHorizonUrl: string, opts?: rpc.Server.Options) => void;
+  setDefaultNetwork: () => void;
+  getRPCServer: () => rpc.Server;
+  getHorizonServer: () => rpc.Server;
+  lastPool: TrackedPool | undefined;
+  setLastPool: (poolMeta: PoolMeta) => void;
   trackedPools: TrackedPool[];
-  trackPool: (id: string, name: string | undefined) => void;
+  trackPool: (poolMeta: PoolMeta) => void;
+  untrackPool: (id: string) => void;
   showLend: boolean;
   setShowLend: (showLend: boolean) => void;
   showJoinPool: boolean;
   setShowJoinPool: (showJoinPool: boolean) => void;
+  blockedPools: string[];
+  isV2Enabled: boolean;
 }
 
 const SettingsContext = React.createContext<ISettingsContext | undefined>(undefined);
@@ -44,49 +56,116 @@ export const SettingsProvider = ({ children = null as any }) => {
   const compact = useMediaQuery(theme.breakpoints.down('lg')); // hook causes refresh on change
   const mobile = useMediaQuery(theme.breakpoints.down('sm')); // hook causes refresh on change
 
-  const [network, setNetwork] = useState<Network & { horizonUrl: string }>({
-    rpc: DEFAULT_RPC,
-    passphrase: DEFAULT_PASSPHRASE,
-    opts: undefined,
-    horizonUrl: DEFAULT_HORIZON,
-  });
-
-  const [lastPool, setLastPool] = useLocalStorageState('lastPool', undefined);
-  const [showLend, setShowLend] = useState<boolean>(true);
-  const [showJoinPool, setShowJoinPool] = useState<boolean>(true);
+  const [lastPoolString, setLastPoolString] = useLocalStorageState('lastPool', undefined);
   const [trackedPoolsString, setTrackedPoolsString] = useLocalStorageState(
     'trackedPools',
     undefined
   );
+  const [networkString, setNetworkString] = useLocalStorageState('network', undefined);
 
-  const trackedPools = JSON.parse(trackedPoolsString || '[]') as TrackedPool[];
+  const [showLend, setShowLend] = useState<boolean>(true);
+  const [showJoinPool, setShowJoinPool] = useState<boolean>(true);
+
+  const lastPool = useMemo(() => {
+    try {
+      return lastPoolString ? (JSON.parse(lastPoolString) as TrackedPool) : undefined;
+    } catch (e) {
+      console.warn('Failed to parse lastPool:', e);
+      return undefined;
+    }
+  }, [lastPoolString]);
+  const trackedPools = useMemo(() => {
+    try {
+      return JSON.parse(trackedPoolsString ?? '[]') as TrackedPool[];
+    } catch (e) {
+      console.warn('Failed to parse trackedPools:', e);
+      return [];
+    }
+  }, [trackedPoolsString]);
+  const network = useMemo(() => {
+    try {
+      let urls = JSON.parse(networkString ?? '{}') as NetworkUrls;
+      return {
+        rpc: urls.rpc ?? DEFAULT_RPC,
+        passphrase: DEFAULT_PASSPHRASE,
+        opts: urls.opts,
+        horizonUrl: urls.horizonUrl ?? DEFAULT_HORIZON,
+      };
+    } catch (e) {
+      console.warn('Failed to parse urls:', e);
+      return {
+        rpc: DEFAULT_RPC,
+        horizonUrl: DEFAULT_HORIZON,
+        passphrase: DEFAULT_PASSPHRASE,
+        opts: undefined,
+      };
+    }
+  }, [networkString]);
+
+  const [blockedPools, _] = useState<string[]>(
+    (process.env.NEXT_PUBLIC_BLOCKED_POOLS || '').split(',')
+  );
+
+  const isV2Enabled = process.env.NEXT_PUBLIC_BACKSTOP_V2 !== undefined;
 
   let viewType: ViewType;
   if (mobile) viewType = ViewType.MOBILE;
   else if (compact) viewType = ViewType.COMPACT;
   else viewType = ViewType.REGULAR;
 
-  function handleSetNetwork(
-    newRpcUrl: string,
-    newHorizonUrl: string,
-    opts?: SorobanRpc.Server.Options
-  ) {
-    setNetwork({ rpc: newRpcUrl, passphrase: DEFAULT_PASSPHRASE, opts, horizonUrl: newHorizonUrl });
+  function handleSetNetwork(newRpcUrl: string, newHorizonUrl: string, opts?: rpc.Server.Options) {
+    if (newRpcUrl === DEFAULT_RPC && newHorizonUrl === DEFAULT_HORIZON) {
+      handleSetDefaultNetwork();
+    } else {
+      setNetworkString(JSON.stringify({ rpc: newRpcUrl, horizonUrl: newHorizonUrl, opts }));
+    }
+  }
+
+  function handleSetDefaultNetwork() {
+    setNetworkString(undefined);
   }
 
   function getRPCServer() {
-    return new SorobanRpc.Server(network.rpc, network.opts);
+    return new rpc.Server(network.rpc, network.opts);
   }
 
   function getHorizonServer() {
-    return new SorobanRpc.Server(network.horizonUrl, network.opts);
+    return new rpc.Server(network.horizonUrl, network.opts);
   }
 
-  function trackPool(id: string, name: string | undefined) {
-    if (name !== undefined) {
-      if (trackedPools.find((pool) => pool.id === id)) return;
-      setTrackedPoolsString(JSON.stringify([...trackedPools, { id, name }]));
+  function trackPool(poolMeta: PoolMeta) {
+    let index = trackedPools.findIndex((pool) => pool.id === poolMeta.id);
+    if (index !== -1) {
+      if (
+        trackedPools[index].version !== poolMeta.version ||
+        trackedPools[index].name !== poolMeta.name
+      ) {
+        trackedPools[index].version = poolMeta.version;
+        trackedPools[index].name = poolMeta.name;
+        setTrackedPoolsString(JSON.stringify(trackedPools));
+      }
+    } else {
+      setTrackedPoolsString(
+        JSON.stringify([
+          ...trackedPools,
+          { id: poolMeta.id, name: poolMeta.name, version: poolMeta.version },
+        ])
+      );
     }
+  }
+
+  function untrackPool(id: string) {
+    const index = trackedPools.findIndex((pool) => pool.id === id);
+    if (index !== -1) {
+      trackedPools.splice(index, 1);
+      setTrackedPoolsString(JSON.stringify(trackedPools));
+    }
+  }
+
+  function setLastPool(poolMeta: PoolMeta) {
+    setLastPoolString(
+      JSON.stringify({ id: poolMeta.id, name: poolMeta.name, version: poolMeta.version })
+    );
   }
 
   return (
@@ -95,16 +174,20 @@ export const SettingsProvider = ({ children = null as any }) => {
         viewType,
         network,
         setNetwork: handleSetNetwork,
+        setDefaultNetwork: handleSetDefaultNetwork,
         getRPCServer,
         getHorizonServer,
         lastPool,
         setLastPool,
         trackedPools,
         trackPool,
+        untrackPool,
         showLend,
         setShowLend,
         showJoinPool,
         setShowJoinPool,
+        blockedPools,
+        isV2Enabled,
       }}
     >
       {children}

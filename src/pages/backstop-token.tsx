@@ -1,3 +1,4 @@
+import { Version } from '@blend-capital/blend-sdk';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { IconButton, Typography, useTheme } from '@mui/material';
 import type { NextPage } from 'next';
@@ -22,7 +23,7 @@ const BackstopToken: NextPage = () => {
   const BLND_CONTRACT_ID = BLND_ASSET.contractId(network.passphrase);
   const USDC_CONTRACT_ID = USDC_ASSET.contractId(network.passphrase);
 
-  const { data: backstop } = useBackstop();
+  const { data: backstop } = useBackstop(Version.V1);
   const { data: horizonAccount } = useHorizonAccount();
   const { data: blndBalanceRes } = useTokenBalance(BLND_CONTRACT_ID, BLND_ASSET, horizonAccount);
   const { data: usdcBalanceRes } = useTokenBalance(USDC_CONTRACT_ID, USDC_ASSET, horizonAccount);
@@ -58,7 +59,9 @@ const BackstopToken: NextPage = () => {
           src={'/icons/pageicons/blnd_usdc_pair.svg'}
           alt={`blndusdclp`}
           isCircle={false}
-          sx={{ marginRight: '12px', height: '42px', width: '42px' }}
+          height={'30px'}
+          width={'45px'}
+          sx={{ marginRight: '12px' }}
         />
         <Typography variant="h2">{title}</Typography>
         <IconButton
@@ -156,7 +159,11 @@ const BackstopToken: NextPage = () => {
           width={viewType === ViewType.REGULAR ? SectionSize.THIRD : SectionSize.TILE}
           sx={{ alignItems: 'center', justifyContent: 'flex-start', padding: '12px' }}
         >
-          <Icon src={'/icons/tokens/usdc.svg'} alt={`usdc icon`} sx={{ marginRight: '12px' }} />
+          <Icon
+            src={'https://www.centre.io/images/usdc/usdc-icon-86074d9d49.png'}
+            alt={`usdc icon`}
+            sx={{ marginRight: '12px' }}
+          />
           <StackedText
             title="Your USDC Balance"
             titleColor="inherit"

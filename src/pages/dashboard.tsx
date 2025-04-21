@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { BackstopPreviewBar } from '../components/backstop/BackstopPreviewBar';
 import { BorrowMarketList } from '../components/borrow/BorrowMarketList';
 import { BorrowPositionList } from '../components/borrow/BorrowPositionList';
+import { AllbridgeButton } from '../components/bridge/allbridge';
 import { Divider } from '../components/common/Divider';
 import { Row } from '../components/common/Row';
 import { Section, SectionSize } from '../components/common/Section';
@@ -12,10 +13,14 @@ import { ToggleButton } from '../components/common/ToggleButton';
 import { PositionOverview } from '../components/dashboard/PositionOverview';
 import { LendMarketList } from '../components/lend/LendMarketList';
 import { LendPositionList } from '../components/lend/LendPositionList';
+import { NotPoolBar } from '../components/pool/NotPoolBar';
 import { PoolExploreBar } from '../components/pool/PoolExploreBar';
+import { PoolHealthBanner } from '../components/pool/PoolHealthBanner';
 import { useSettings } from '../contexts';
-import { usePool, usePoolOracle } from '../hooks/api';
+import { usePool, usePoolMeta, usePoolOracle } from '../hooks/api';
+import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
 import { toBalance } from '../utils/formatter';
+import { MAINNET_USDC_CONTRACT_ADDRESS } from '../utils/token_display';
 
 const Dashboard: NextPage = () => {
   const router = useRouter();
@@ -25,8 +30,9 @@ const Dashboard: NextPage = () => {
   const { poolId } = router.query;
   const safePoolId = typeof poolId == 'string' && /^[0-9A-Z]{56}$/.test(poolId) ? poolId : '';
 
-  const { data: pool } = usePool(safePoolId);
-  const { data: poolOracle } = usePoolOracle(pool);
+  const { data: poolMeta, error: poolError } = usePoolMeta(safePoolId);
+  const { data: pool } = usePool(poolMeta);
+  const { data: poolOracle, isError: isOracleError } = usePoolOracle(pool);
 
   const marketSize =
     poolOracle !== undefined && pool !== undefined
@@ -45,9 +51,18 @@ const Dashboard: NextPage = () => {
     }
   };
 
+  if (poolError?.message === NOT_BLEND_POOL_ERROR_MESSAGE) {
+    return <NotPoolBar poolId={safePoolId} />;
+  }
+
   return (
     <>
+      <PoolHealthBanner poolId={safePoolId} />
       <PoolExploreBar poolId={safePoolId} />
+      {pool &&
+        Array.from(pool.reserves.keys()).some(
+          (assetId) => assetId === MAINNET_USDC_CONTRACT_ADDRESS
+        ) && <AllbridgeButton />}
       <Divider />
       <BackstopPreviewBar poolId={safePoolId} />
       <Divider />

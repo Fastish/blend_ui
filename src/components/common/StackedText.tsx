@@ -1,5 +1,6 @@
 import { Box, BoxProps, Typography } from '@mui/material';
 import React, { ReactElement } from 'react';
+import { TooltipText } from './TooltipText';
 
 export interface StackedTextProps extends BoxProps {
   title: string;
@@ -7,6 +8,7 @@ export interface StackedTextProps extends BoxProps {
   type?: 'normal' | 'large' | undefined;
   titleColor?: string | undefined;
   textColor?: string | undefined;
+  tooltip?: string;
 }
 
 export const StackedText: React.FC<StackedTextProps> = ({
@@ -15,12 +17,14 @@ export const StackedText: React.FC<StackedTextProps> = ({
   type,
   titleColor,
   textColor,
+  tooltip,
   ...props
 }) => {
   const textType = type ? type : 'normal';
   const textVariant = textType == 'large' ? 'h2' : 'h4';
   const muiTitleColor = titleColor ? titleColor : 'text.secondary';
   const muiTextColor = textColor ? textColor : 'text.primary';
+  const hasTooltip = tooltip !== undefined && tooltip !== '';
   return (
     <Box
       sx={{
@@ -31,9 +35,15 @@ export const StackedText: React.FC<StackedTextProps> = ({
         ...props.sx,
       }}
     >
-      <Typography variant="body2" color={muiTitleColor}>
-        {title}
-      </Typography>
+      {hasTooltip ? (
+        <TooltipText tooltip={tooltip} width="auto" textVariant="body2" textColor={muiTitleColor}>
+          {title}
+        </TooltipText>
+      ) : (
+        <Typography variant="body2" color={muiTitleColor}>
+          {title}
+        </Typography>
+      )}
       <Typography variant={textVariant} color={muiTextColor}>
         {text}
       </Typography>

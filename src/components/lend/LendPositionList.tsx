@@ -1,17 +1,19 @@
 import { PositionsEstimate } from '@blend-capital/blend-sdk';
 import { Box, Typography } from '@mui/material';
 import { ViewType, useSettings } from '../../contexts';
-import { usePool, usePoolOracle, usePoolUser } from '../../hooks/api';
+import { usePool, usePoolMeta, usePoolOracle, usePoolUser } from '../../hooks/api';
 import { PoolComponentProps } from '../common/PoolComponentProps';
 import { Row } from '../common/Row';
 import { Section, SectionSize } from '../common/Section';
+import { TooltipText } from '../common/TooltipText';
 import { LendBanner } from './LendBanner';
 import { LendPositionCard } from './LendPositionCard';
 
 export const LendPositionList: React.FC<PoolComponentProps> = ({ poolId }) => {
   const { viewType } = useSettings();
 
-  const { data: pool } = usePool(poolId);
+  const { data: poolMeta } = usePoolMeta(poolId);
+  const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
   const { data: poolUserData } = usePoolUser(pool);
 
@@ -70,14 +72,12 @@ export const LendPositionList: React.FC<PoolComponentProps> = ({ poolId }) => {
               Balance
             </Typography>
 
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              align="center"
-              sx={{ width: headerWidth }}
+            <TooltipText
+              tooltip="The estimated compounding interest rate earned on a supplied position. This rate will fluctuate based on the market conditions, and accrues to the supplied position automatically."
+              width={headerWidth}
             >
-              APR
-            </Typography>
+              APY
+            </TooltipText>
 
             <Box
               sx={{ flexGrow: '2', width: viewType === ViewType.MOBILE ? '24px' : headerWidth }}

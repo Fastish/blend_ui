@@ -3,11 +3,19 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, Typography, useTheme } from '@mui/material';
 import { useRouter } from 'next/router';
 import { ViewType, useSettings } from '../../contexts';
+import {
+  useBackstop,
+  usePool,
+  usePoolMeta,
+  usePoolOracle,
+  useTokenMetadata,
+} from '../../hooks/api';
 import * as formatter from '../../utils/formatter';
-import { FlameIcon } from '../common/FlameIcon';
+import { estimateEmissionsApr } from '../../utils/math';
 import { LinkBox } from '../common/LinkBox';
 import { OpaqueButton } from '../common/OpaqueButton';
 import { PoolComponentProps } from '../common/PoolComponentProps';
+import { RateDisplay } from '../common/RateDisplay';
 import { TokenHeader } from '../common/TokenHeader';
 
 export interface BorrowPositionCardProps extends PoolComponentProps {
@@ -19,18 +27,38 @@ export const BorrowPositionCard: React.FC<BorrowPositionCardProps> = ({
   poolId,
   reserve,
   dTokens,
-  sx,
-  ...props
 }) => {
   const theme = useTheme();
   const { viewType } = useSettings();
   const router = useRouter();
 
+  const { data: poolMeta } = usePoolMeta(poolId);
+  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: pool } = usePool(poolMeta);
+  const { data: poolOracle } = usePoolOracle(pool);
+  const { data: tokenMetadata } = useTokenMetadata(reserve.assetId);
+
+  const symbol = tokenMetadata?.symbol ?? formatter.toCompactAddress(reserve.assetId);
+  const oraclePrice = poolOracle?.getPriceFloat(reserve.assetId);
   const assetFloat = reserve.toAssetFromDTokenFloat(dTokens);
+  const emissionsPerAsset =
+    reserve && reserve.borrowEmissions !== undefined
+      ? reserve.borrowEmissions.emissionsPerYearPerToken(
+          reserve.totalLiabilities(),
+          reserve.config.decimals
+        )
+      : 0;
+  const emissionApr =
+    backstop && emissionsPerAsset && emissionsPerAsset > 0 && oraclePrice
+      ? estimateEmissionsApr(emissionsPerAsset, backstop.backstopToken, oraclePrice)
+      : undefined;
 
   const tableNum = viewType === ViewType.REGULAR ? 5 : 3;
   const tableWidth = `${(100 / tableNum).toFixed(2)}%`;
-  const buttonWidth = `${((100 / tableNum) * 1.5).toFixed(2)}%`;
+  const buttonWidth = `${((100 / tableNum) * (viewType === ViewType.REGULAR ? 1.5 : 1)).toFixed(
+    2
+  )}%`;
+
   return (
     <Box
       sx={{
@@ -48,7 +76,7 @@ export const BorrowPositionCard: React.FC<BorrowPositionCardProps> = ({
       onClick={() => {
         if (viewType === ViewType.MOBILE) {
           router.push({
-            pathname: '/withdraw',
+            pathname: '/repay',
             query: { poolId: poolId, assetId: reserve.assetId },
           });
         }
@@ -74,18 +102,16 @@ export const BorrowPositionCard: React.FC<BorrowPositionCardProps> = ({
           alignItems: 'center',
         }}
       >
-        <Typography variant="body1">{formatter.toPercentage(reserve.borrowApr)}</Typography>
-        {reserve.borrowEmissions && (
-          <FlameIcon
-            width={22}
-            height={22}
-            title={formatter.getEmissionTextFromValue(
-              reserve.emissionsPerYearPerBorrowedAsset(),
-              reserve.tokenMetadata.symbol
-            )}
-          />
-        )}
+        <RateDisplay
+          assetSymbol={symbol}
+          assetRate={reserve.estBorrowApy}
+          emissionSymbol="BLND"
+          emissionApr={emissionApr}
+          rateType={'charged'}
+          direction="vertical"
+        />
       </Box>
+
       {viewType !== ViewType.MOBILE && (
         <LinkBox
           to={{ pathname: '/repay', query: { poolId: poolId, assetId: reserve.assetId } }}

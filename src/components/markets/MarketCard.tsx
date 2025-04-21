@@ -4,7 +4,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, Collapse, useTheme } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useSettings } from '../../contexts';
-import { useBackstop, useBackstopPool, usePool, usePoolOracle } from '../../hooks/api';
+import { useBackstop, useBackstopPool, usePool, usePoolMeta, usePoolOracle } from '../../hooks/api';
 import { toBalance } from '../../utils/formatter';
 import { LinkBox } from '../common/LinkBox';
 import { OpaqueButton } from '../common/OpaqueButton';
@@ -15,6 +15,7 @@ import { Skeleton } from '../common/Skeleton';
 import { StackedTextHLBox } from '../common/StackedTextHLBox';
 import { TokenIcon } from '../common/TokenIcon';
 import { PoolHeader } from '../pool/PoolHeader';
+import { PoolHealthBanner } from '../pool/PoolHealthBanner';
 import { MarketCardCollapse } from './MarketCardCollapse';
 
 export interface MarketCardProps extends PoolComponentProps {
@@ -26,24 +27,34 @@ export const MarketCard: React.FC<MarketCardProps> = ({ poolId, index, onLoaded,
   const theme = useTheme();
   const { trackPool } = useSettings();
 
-  const { data: backstop } = useBackstop();
-  const { data: pool } = usePool(poolId);
+  const { data: poolMeta } = usePoolMeta(poolId);
+  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: pool } = usePool(poolMeta);
   const { data: poolOracle } = usePoolOracle(pool);
-  const { data: backstopPool } = useBackstopPool(poolId);
-
+  const { data: backstopPool } = useBackstopPool(poolMeta);
   const [expand, setExpand] = useState(false);
   const [rotateArrow, setRotateArrow] = useState(false);
 
   const rotate = rotateArrow ? 'rotate(180deg)' : 'rotate(0)';
 
   useEffect(() => {
-    if (pool !== undefined && backstopPool !== undefined && backstop !== undefined) {
+    if (
+      poolMeta !== undefined &&
+      pool !== undefined &&
+      backstopPool !== undefined &&
+      backstop !== undefined
+    ) {
       onLoaded(index);
-      trackPool(poolId, pool.config.name);
+      trackPool(poolMeta);
     }
   }, [pool, backstopPool, backstop]);
 
-  if (pool === undefined || backstopPool === undefined || backstop === undefined) {
+  if (
+    poolMeta === undefined ||
+    pool === undefined ||
+    backstopPool === undefined ||
+    backstop === undefined
+  ) {
     return <Skeleton height={'100px'} />;
   }
 
@@ -66,7 +77,12 @@ export const MarketCard: React.FC<MarketCardProps> = ({ poolId, index, onLoaded,
         }}
       >
         <Row>
-          <PoolHeader name={pool.config.name} sx={{ margin: '6px', padding: '6px' }} />
+          <PoolHeader
+            name={poolMeta.name}
+            version={poolMeta.version}
+            sx={{ margin: '6px', padding: '6px' }}
+          />
+
           <Box
             sx={{
               margin: '6px',
@@ -142,6 +158,8 @@ export const MarketCard: React.FC<MarketCardProps> = ({ poolId, index, onLoaded,
           </OpaqueButton>
         </LinkBox>
       </Row>
+      <PoolHealthBanner poolId={poolId} />
+
       <Collapse in={expand} sx={{ width: '100%' }}>
         <MarketCardCollapse
           pool={pool}

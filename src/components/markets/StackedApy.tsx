@@ -1,12 +1,12 @@
 import { Box, BoxProps, Typography } from '@mui/material';
 import theme from '../../theme';
 
-export interface StackedAprProps extends BoxProps {
-  aprLend: string;
-  aprBorrow: string;
+export interface StackedApyProps extends BoxProps {
+  apyLend: string;
+  apyBorrow: string;
 }
 
-export const StackedApr: React.FC<StackedAprProps> = ({ aprLend, aprBorrow, sx, ...props }) => {
+export const StackedApy: React.FC<StackedApyProps> = ({ apyLend, apyBorrow, sx, ...props }) => {
   return (
     <Box
       sx={{
@@ -28,7 +28,7 @@ export const StackedApr: React.FC<StackedAprProps> = ({ aprLend, aprBorrow, sx, 
           borderRadius: '5px',
         }}
       >
-        <Typography variant="body2">{`${aprLend}`}</Typography>
+        <Typography variant="body2">{`${apyLend}`}</Typography>
         <Typography variant="body2">S</Typography>
       </Box>
       <Box
@@ -43,7 +43,7 @@ export const StackedApr: React.FC<StackedAprProps> = ({ aprLend, aprBorrow, sx, 
           borderRadius: '5px',
         }}
       >
-        <Typography variant="body2">{`${aprBorrow}`}</Typography>
+        <Typography variant="body2">{`${apyBorrow}`}</Typography>
         <Typography variant="body2">B</Typography>
       </Box>
     </Box>

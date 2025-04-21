@@ -3,7 +3,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Box, BoxProps, Typography, useTheme } from '@mui/material';
-import { ViewType, useSettings } from '../../contexts';
+import { useSettings, ViewType } from '../../contexts';
 import { toCompactAddress, toPercentage } from '../../utils/formatter';
 import { Icon } from '../common/Icon';
 import { LinkBox } from '../common/LinkBox';
@@ -33,7 +33,7 @@ export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
   const { viewType } = useSettings();
 
   const estBackstopApr = poolEst
-    ? ((pool.config.backstopRate / 1e7) * poolEst.avgBorrowApr * poolEst.totalBorrowed) /
+    ? ((pool.metadata.backstopRate / 1e7) * poolEst.avgBorrowApy * poolEst.totalBorrowed) /
       backstopPoolEst.totalSpotValue
     : undefined;
   return (
@@ -54,7 +54,7 @@ export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
             justifyContent: 'space-between',
             alignItems: 'center',
             color: theme.palette.text.secondary,
-            cursor: 'default',
+            cursor: 'pointer',
           }}
           onClick={() =>
             window.open(
@@ -63,7 +63,10 @@ export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
             )
           }
         >
-          <PoolIcon name={pool.config.name} sx={{ margin: '6px', height: '30px', width: '30px' }} />
+          <PoolIcon
+            name={pool.metadata.name}
+            sx={{ margin: '6px', height: '30px', width: '30px' }}
+          />
           <Box sx={{ padding: '6px', display: 'flex', flexDirection: 'row', height: '30px' }}>
             <Box sx={{ paddingRight: '12px', lineHeight: '100%' }}>{`Pool ${toCompactAddress(
               pool.id
@@ -89,11 +92,11 @@ export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
             justifyContent: 'space-between',
             alignItems: 'center',
             color: theme.palette.text.secondary,
-            cursor: 'default',
+            cursor: 'pointer',
           }}
           onClick={() =>
             window.open(
-              `${process.env.NEXT_PUBLIC_STELLAR_EXPERT_URL}/contract/${pool.config.oracle}`,
+              `${process.env.NEXT_PUBLIC_STELLAR_EXPERT_URL}/contract/${pool.metadata.oracle}`,
               '_blank'
             )
           }
@@ -103,7 +106,7 @@ export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
           </Box>
           <Box sx={{ padding: '6px', display: 'flex', flexDirection: 'row', height: '30px' }}>
             <Box sx={{ paddingRight: '12px', lineHeight: '100%' }}>{`Oracle ${toCompactAddress(
-              pool.config.oracle
+              pool.metadata.oracle
             )}`}</Box>
             <Box>
               <OpenInNewIcon fontSize="inherit" />
@@ -119,17 +122,17 @@ export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
             justifyContent: 'space-between',
             alignItems: 'center',
             color: theme.palette.text.secondary,
-            cursor: 'default',
+            cursor: 'pointer',
           }}
           onClick={() => {
-            if (pool.config.admin.charAt(0) === 'G') {
+            if (pool.metadata.admin.charAt(0) === 'G') {
               window.open(
-                `${process.env.NEXT_PUBLIC_STELLAR_EXPERT_URL}/account/${pool.config.admin}`,
+                `${process.env.NEXT_PUBLIC_STELLAR_EXPERT_URL}/account/${pool.metadata.admin}`,
                 '_blank'
               );
             } else {
               window.open(
-                `${process.env.NEXT_PUBLIC_STELLAR_EXPERT_URL}/contract/${pool.config.admin}`,
+                `${process.env.NEXT_PUBLIC_STELLAR_EXPERT_URL}/contract/${pool.metadata.admin}`,
                 '_blank'
               );
             }
@@ -140,7 +143,7 @@ export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
           </Box>
           <Box sx={{ padding: '6px', display: 'flex', flexDirection: 'row', height: '30px' }}>
             <Box sx={{ paddingRight: '12px', lineHeight: '100%' }}>{`Admin ${toCompactAddress(
-              pool.config.admin
+              pool.metadata.admin
             )}`}</Box>
             <Box>
               <OpenInNewIcon fontSize="inherit" />
@@ -212,7 +215,7 @@ export const MarketCardCollapse: React.FC<MarketCardCollapseProps> = ({
                 />
                 <StackedTextBox
                   name="Take Rate"
-                  text={toPercentage(pool.config.backstopRate / 1e7)}
+                  text={toPercentage(pool.metadata.backstopRate / 1e7)}
                   sx={{ width: '50%', color: theme.palette.backstop.main }}
                 />
               </Row>

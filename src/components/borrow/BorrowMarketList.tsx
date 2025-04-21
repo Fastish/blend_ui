@@ -1,15 +1,16 @@
-import HelpOutline from '@mui/icons-material/HelpOutline';
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { ViewType, useSettings } from '../../contexts';
-import { usePool } from '../../hooks/api';
+import { usePool, usePoolMeta } from '../../hooks/api';
 import { PoolComponentProps } from '../common/PoolComponentProps';
 import { Skeleton } from '../common/Skeleton';
+import { TooltipText } from '../common/TooltipText';
 import { BorrowMarketCard } from './BorrowMarketCard';
 
 export const BorrowMarketList: React.FC<PoolComponentProps> = ({ poolId }) => {
   const { viewType } = useSettings();
 
-  const { data: pool } = usePool(poolId);
+  const { data: poolMeta } = usePoolMeta(poolId);
+  const { data: pool } = usePool(poolMeta);
 
   if (pool === undefined) {
     return <Skeleton />;
@@ -50,36 +51,19 @@ export const BorrowMarketList: React.FC<PoolComponentProps> = ({ poolId }) => {
         >
           Available
         </Typography>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          align="center"
-          sx={{ width: headerWidth }}
+        <TooltipText
+          tooltip="The estimated compounding interest rate charged for a borrowed position. This rate will fluctuate based on the market conditions, and accrues to the borrowed position automatically."
+          width={headerWidth}
         >
-          APR
-        </Typography>
+          APY
+        </TooltipText>
         {viewType !== ViewType.MOBILE && (
-          <Tooltip
-            title="The percent of this asset's value subtracted from your borrow capacity."
-            placement="top"
-            enterTouchDelay={0}
-            enterDelay={500}
-            leaveTouchDelay={3000}
+          <TooltipText
+            tooltip="The percent of this asset's value subtracted from your borrow capacity."
+            width={headerWidth}
           >
-            <Box sx={{ display: 'flex', flexDirection: 'row', width: headerWidth }}>
-              <Typography variant="body2" color="text.secondary" align="center">
-                Liability Factor
-              </Typography>
-              <HelpOutline
-                sx={{
-                  color: 'text.secondary',
-                  width: '15px',
-                  marginTop: '-4px',
-                  marginLeft: '4px',
-                }}
-              />
-            </Box>
-          </Tooltip>
+            Liability Factor
+          </TooltipText>
         )}
 
         <Box sx={{ width: viewType === ViewType.MOBILE ? 'auto' : headerWidth }} />

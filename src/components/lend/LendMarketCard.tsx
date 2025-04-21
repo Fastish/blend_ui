@@ -2,12 +2,21 @@ import { Reserve } from '@blend-capital/blend-sdk';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { Box, Typography, useTheme } from '@mui/material';
 import { ViewType, useSettings } from '../../contexts';
-import { useHorizonAccount, useTokenBalance } from '../../hooks/api';
+import {
+  useBackstop,
+  useHorizonAccount,
+  usePool,
+  usePoolMeta,
+  usePoolOracle,
+  useTokenBalance,
+  useTokenMetadata,
+} from '../../hooks/api';
 import * as formatter from '../../utils/formatter';
+import { estimateEmissionsApr } from '../../utils/math';
 import { CustomButton } from '../common/CustomButton';
-import { FlameIcon } from '../common/FlameIcon';
 import { LinkBox } from '../common/LinkBox';
 import { PoolComponentProps } from '../common/PoolComponentProps';
+import { RateDisplay } from '../common/RateDisplay';
 import { SectionBase } from '../common/SectionBase';
 import { TokenHeader } from '../common/TokenHeader';
 
@@ -24,12 +33,31 @@ export const LendMarketCard: React.FC<LendMarketCardProps> = ({
   const theme = useTheme();
   const { viewType } = useSettings();
 
+  const { data: poolMeta } = usePoolMeta(poolId);
   const { data: userAccount } = useHorizonAccount();
+  const { data: tokenMetadata } = useTokenMetadata(reserve.assetId);
   const { data: userTokenBalance } = useTokenBalance(
     reserve.assetId,
-    reserve.tokenMetadata.asset,
+    tokenMetadata?.asset,
     userAccount
   );
+  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: pool } = usePool(poolMeta);
+  const { data: poolOracle } = usePoolOracle(pool);
+
+  const symbol = tokenMetadata?.symbol ?? formatter.toCompactAddress(reserve.assetId);
+  const oraclePrice = poolOracle?.getPriceFloat(reserve.assetId);
+  const emissionsPerAsset =
+    reserve && reserve.supplyEmissions !== undefined
+      ? reserve.supplyEmissions.emissionsPerYearPerToken(
+          reserve.totalSupply(),
+          reserve.config.decimals
+        )
+      : 0;
+  const emissionApr =
+    backstop && emissionsPerAsset && emissionsPerAsset > 0 && oraclePrice
+      ? estimateEmissionsApr(emissionsPerAsset, backstop.backstopToken, oraclePrice)
+      : undefined;
 
   const tableNum = viewType === ViewType.REGULAR ? 5 : 3;
   const tableWidth = `${(100 / tableNum).toFixed(2)}%`;
@@ -75,21 +103,19 @@ export const LendMarketCard: React.FC<LendMarketCardProps> = ({
             sx={{
               width: tableWidth,
               display: 'flex',
+              flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'center',
             }}
           >
-            <Typography variant="body1">{formatter.toPercentage(reserve.supplyApr)}</Typography>
-            {reserve.supplyEmissions && (
-              <FlameIcon
-                width={22}
-                height={22}
-                title={formatter.getEmissionTextFromValue(
-                  reserve.emissionsPerYearPerSuppliedAsset(),
-                  reserve.tokenMetadata?.symbol
-                )}
-              />
-            )}
+            <RateDisplay
+              assetSymbol={symbol}
+              assetRate={reserve.estSupplyApy}
+              emissionSymbol="BLND"
+              emissionApr={emissionApr}
+              rateType={'earned'}
+              direction="vertical"
+            />
           </Box>
 
           {viewType !== ViewType.MOBILE && (

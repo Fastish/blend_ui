@@ -1,9 +1,14 @@
 import { BackstopPoolEst, BackstopPoolUserEst } from '@blend-capital/blend-sdk';
-import { HelpOutline } from '@mui/icons-material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import { Box, Tooltip, useTheme } from '@mui/material';
+import { Box, useTheme } from '@mui/material';
 import { useSettings, ViewType } from '../../contexts';
-import { useBackstop, useBackstopPool, useBackstopPoolUser } from '../../hooks/api';
+import {
+  useBackstop,
+  useBackstopPool,
+  useBackstopPoolUser,
+  usePool,
+  usePoolMeta,
+} from '../../hooks/api';
 import { toBalance } from '../../utils/formatter';
 import { CustomButton } from '../common/CustomButton';
 import { Icon } from '../common/Icon';
@@ -18,9 +23,11 @@ export const BackstopPreviewBar: React.FC<PoolComponentProps> = ({ poolId }) => 
   const { viewType } = useSettings();
   const theme = useTheme();
 
-  const { data: backstop } = useBackstop();
-  const { data: backstopPoolData } = useBackstopPool(poolId);
-  const { data: backstopUserData } = useBackstopPoolUser(poolId);
+  const { data: poolMeta } = usePoolMeta(poolId);
+  const { data: pool } = usePool(poolMeta);
+  const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: backstopPoolData } = useBackstopPool(poolMeta);
+  const { data: backstopUserData } = useBackstopPoolUser(poolMeta);
 
   if (backstop === undefined || backstopPoolData == undefined) {
     return <Skeleton />;
@@ -62,48 +69,31 @@ export const BackstopPreviewBar: React.FC<PoolComponentProps> = ({ poolId }) => 
             borderRadius: '5px',
           }}
         >
-          <PoolStatusBox titleColor="inherit" type="large" status="Active" />
+          <PoolStatusBox titleColor="inherit" type="large" status={pool?.metadata?.status} />
         </Box>
-        <Tooltip
-          title="The amount of capital insuring this pool."
-          placement="top"
-          enterTouchDelay={0}
-          enterDelay={500}
-          leaveTouchDelay={3000}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginLeft: 'auto',
+            marginRight: '23px',
+          }}
         >
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginLeft: 'auto',
-              marginRight: '23px',
-            }}
-          >
-            <Box sx={{ display: 'flex', flexDirection: 'row' }}>
-              <StackedText
-                title="Total Backstop Size"
-                titleColor="inherit"
-                text={`$${toBalance(backstopPoolEst.totalSpotValue)}`}
-                textColor="inherit"
-                type="large"
-              />
-              <HelpOutline
-                sx={{
-                  color: theme.palette.text.secondary,
-                  width: '15px',
-                  marginLeft: '4px',
-                  marginTop: '-4px',
-                }}
-              />
-            </Box>
-            <Icon
-              src={'/icons/dashboard/bkstp_size.svg'}
-              alt={`backstop size icon`}
-              sx={{ marginLeft: '12px' }}
-            />
-          </Box>
-        </Tooltip>
+          <StackedText
+            title="Total Backstop Size"
+            titleColor="inherit"
+            text={`$${toBalance(backstopPoolEst.totalSpotValue)}`}
+            textColor="inherit"
+            type="large"
+            tooltip="The amount of capital insuring this pool."
+          />
+          <Icon
+            src={'/icons/dashboard/bkstp_size.svg'}
+            alt={`backstop size icon`}
+            sx={{ marginLeft: '12px' }}
+          />
+        </Box>
       </Box>
       <LinkBox
         sx={{ width: viewTypeRegular ? '45%' : '100%', display: 'flex' }}

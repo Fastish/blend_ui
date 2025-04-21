@@ -1,24 +1,27 @@
-import { IconProps as MuiIconProps } from '@mui/material';
 import React from 'react';
 
 import { Reserve } from '@blend-capital/blend-sdk';
-import { useTokenMetadataFromToml } from '../../hooks/api';
+import { Theme } from '@emotion/react';
+import { SxProps } from '@mui/material';
+import { useTokenMetadata } from '../../hooks/api';
+import { toCompactAddress } from '../../utils/formatter';
 import { Icon } from './Icon';
 import { LetterIcon } from './LetterIcon';
 
-export interface TokenIconProps extends MuiIconProps {
+export interface TokenIconProps {
   reserve: Reserve;
+  height?: string;
+  width?: string;
+  sx?: SxProps<Theme> | undefined;
 }
 export const TokenIcon: React.FC<TokenIconProps> = ({ reserve, ...props }) => {
-  const { data: stellarTokenMetadata } = useTokenMetadataFromToml(reserve);
+  const { data: stellarTokenMetadata } = useTokenMetadata(reserve.assetId);
+  const symbol = stellarTokenMetadata?.symbol || toCompactAddress(reserve.assetId);
 
   if (stellarTokenMetadata?.image) {
-    return (
-      <Icon src={stellarTokenMetadata.image} alt={`${stellarTokenMetadata.code}`} {...props} />
-    );
+    return <Icon src={stellarTokenMetadata.image} alt={symbol} {...props} />;
   } else {
-    const code = stellarTokenMetadata?.code || 'Soroban Token';
     // return circle with capitalized first letter of the symbol
-    return <LetterIcon text={code.charAt(0).toUpperCase()} {...props} />;
+    return <LetterIcon text={symbol.charAt(0).toUpperCase()} {...props} />;
   }
 };
