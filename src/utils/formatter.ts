@@ -31,7 +31,7 @@ export function toBalance(
   if (numValue === 0) {
     visibleDecimals = 0;
   } else {
-    if (numValue >= 10) {
+    if (numValue >= 1) {
       visibleDecimals = 2;
     } else {
       visibleDecimals = Math.min(decimals ?? 7, 7);

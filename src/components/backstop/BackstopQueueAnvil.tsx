@@ -24,6 +24,7 @@ import { PoolComponentProps } from '../common/PoolComponentProps';
 import { Row } from '../common/Row';
 import { Section, SectionSize } from '../common/Section';
 import { Skeleton } from '../common/Skeleton';
+import { TxFeeSelector } from '../common/TxFeeSelector';
 import { TxOverview } from '../common/TxOverview';
 import { Value } from '../common/Value';
 import { ValueChange } from '../common/ValueChange';
@@ -32,8 +33,15 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
   const theme = useTheme();
   const { viewType } = useSettings();
 
-  const { connected, walletAddress, backstopQueueWithdrawal, txType, txStatus, isLoading } =
-    useWallet();
+  const {
+    connected,
+    walletAddress,
+    backstopQueueWithdrawal,
+    txType,
+    txStatus,
+    isLoading,
+    txInclusionFee,
+  } = useWallet();
 
   const { data: poolMeta } = usePoolMeta(poolId);
   const { data: backstop } = useBackstop(poolMeta?.version);
@@ -159,7 +167,7 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
               display: 'flex',
               gap: '12px',
               flexDirection: viewType !== ViewType.MOBILE ? 'row' : 'column',
-              marginBottom: '12px',
+              marginBottom: '6px',
             }}
           >
             <InputBar
@@ -190,24 +198,40 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
               </OpaqueButton>
             )}
           </Box>
-          <Box sx={{ marginLeft: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <Box
+            sx={{
+              marginLeft: '12px',
+              display: 'flex',
+              flexDirection: 'row',
+              gap: '12px',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
             <Typography variant="h5" sx={{ color: theme.palette.text.secondary }}>
               {`$${toBalance(Number(toQueue ?? 0) * backstopTokenPrice)}`}
             </Typography>
-            {viewType === ViewType.MOBILE && (
-              <OpaqueButton
-                onClick={() => {
-                  handleSubmitTransaction(false);
-                  setSendingTx(true);
-                }}
-                palette={theme.palette.backstop}
-                sx={{ minWidth: '108px', padding: '6px', display: 'flex', width: '100%' }}
-                disabled={isSubmitDisabled}
-              >
-                Queue
-              </OpaqueButton>
-            )}
+            <TxFeeSelector />
           </Box>
+          {viewType === ViewType.MOBILE && (
+            <OpaqueButton
+              onClick={() => {
+                handleSubmitTransaction(false);
+                setSendingTx(true);
+              }}
+              palette={theme.palette.backstop}
+              sx={{
+                minWidth: '108px',
+                padding: '6px',
+                display: 'flex',
+                width: '100%',
+                marginTop: '6px',
+              }}
+              disabled={isSubmitDisabled}
+            >
+              Queue
+            </OpaqueButton>
+          )}
         </Box>
         {!isError && displayTxOverview && (
           <TxOverview>
@@ -221,7 +245,7 @@ export const BackstopQueueAnvil: React.FC<PoolComponentProps> = ({ poolId }) => 
                   </>
                 }
                 value={`${toBalance(
-                  BigInt((simResponse as any)?.minResourceFee ?? 0),
+                  BigInt((simResponse as any)?.minResourceFee ?? 0) + BigInt(txInclusionFee.fee),
                   decimals
                 )} XLM`}
               />

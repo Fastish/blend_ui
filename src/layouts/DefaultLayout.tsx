@@ -9,10 +9,12 @@ import { Row } from '../components/common/Row';
 import { WalletWarning } from '../components/common/WalletWarning';
 import { NavBar } from '../components/nav/NavBar';
 import { useSettings, ViewType } from '../contexts';
-import { useBackstop, usePoolMeta } from '../hooks/api';
+import { useWallet } from '../contexts/wallet';
+import { useBackstop, useFeeStats, usePoolMeta } from '../hooks/api';
 
 export default function DefaultLayout({ children }: { children: ReactNode }) {
   const { viewType, trackPool, setLastPool } = useSettings();
+  const { txInclusionFee, setTxInclusionFee } = useWallet();
   const router = useRouter();
   const { poolId } = router.query;
   const safePoolId =
@@ -21,6 +23,7 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
 
   const { data: poolMeta } = usePoolMeta(safePoolId as string, safePoolId !== undefined);
   const { data: backstop } = useBackstop(poolMeta?.version);
+  const { data: feeStats } = useFeeStats();
 
   // get the last (oldest) pool in the reward zone
   const faucet_pool =
@@ -34,6 +37,28 @@ export default function DefaultLayout({ children }: { children: ReactNode }) {
       setLastPool(poolMeta);
     }
   }, [poolMeta, trackPool]);
+
+  useEffect(() => {
+    if (feeStats !== undefined) {
+      switch (txInclusionFee.type) {
+        case 'Low':
+          if (feeStats.low !== txInclusionFee.fee) {
+            setTxInclusionFee({ type: 'Low', fee: feeStats.low });
+          }
+          break;
+        case 'Medium':
+          if (feeStats.medium !== txInclusionFee.fee) {
+            setTxInclusionFee({ type: 'Medium', fee: feeStats.medium });
+          }
+          break;
+        case 'High':
+          if (feeStats.high !== txInclusionFee.fee) {
+            setTxInclusionFee({ type: 'High', fee: feeStats.high });
+          }
+          break;
+      }
+    }
+  }, [feeStats]);
 
   const mainWidth = viewType <= ViewType.COMPACT ? '100%' : '886px';
   const mainMargin = viewType <= ViewType.COMPACT ? '0px' : '62px';

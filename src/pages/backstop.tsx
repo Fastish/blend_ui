@@ -50,7 +50,7 @@ import { toBalance, toPercentage } from '../utils/formatter';
 
 const Backstop: NextPage = () => {
   const router = useRouter();
-  const { network, isV2Enabled } = useSettings();
+  const { isV2Enabled } = useSettings();
   const { connected, walletAddress, backstopClaim, restore } = useWallet();
 
   const { poolId } = router.query;

@@ -2,6 +2,7 @@ import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import { Box, Input, Typography } from '@mui/material';
 import { Horizon, rpc } from '@stellar/stellar-sdk';
 import { useEffect, useState } from 'react';
+import packageJSON from '../../package.json';
 import { Divider } from '../components/common/Divider';
 import { OpaqueButton } from '../components/common/OpaqueButton';
 import { Row } from '../components/common/Row';
@@ -26,7 +27,6 @@ export default function SettingsPage() {
   const [newOpts, setNewOpts] = useState<rpc.Server.Options | undefined>(undefined);
   const [poolToAdd, setPoolToAdd] = useState<string>('');
   const [poolIdError, setPoolIdError] = useState('');
-
   const { data: poolMeta } = usePoolMeta(poolToAdd, poolToAdd.length > 0);
 
   function fetchFromWallet() {
@@ -171,6 +171,16 @@ export default function SettingsPage() {
   return (
     <>
       <>
+        <Row sx={{ margin: '12px', padding: '12px' }}>
+          <Typography variant="h1">UI Release</Typography>
+        </Row>
+        <Divider />
+        <Row sx={{ margin: '12px', padding: '12px', flexDirection: 'column', gap: '1rem' }}>
+          <Typography variant="h2">Version</Typography>
+          <Typography variant="h3" sx={{ color: theme.palette.text.secondary }}>
+            {packageJSON.version}
+          </Typography>
+        </Row>
         <Row sx={{ margin: '12px', padding: '12px' }}>
           <Typography variant="h1">Network Configuration</Typography>
         </Row>

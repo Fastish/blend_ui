@@ -20,7 +20,7 @@ import { PoolMenu } from '../components/pool/PoolMenu';
 import { useSettings, ViewType } from '../contexts';
 import { usePool, usePoolMeta, usePoolOracle, useTokenMetadata } from '../hooks/api';
 import { NOT_BLEND_POOL_ERROR_MESSAGE } from '../hooks/types';
-import { toCompactAddress, toPercentage } from '../utils/formatter';
+import { toBalance, toCompactAddress, toPercentage } from '../utils/formatter';
 
 const Asset: NextPage = () => {
   const router = useRouter();
@@ -121,7 +121,7 @@ const Asset: NextPage = () => {
           </Box>
 
           <Typography sx={{ padding: '6px' }}>
-            {`$${poolOracle.getPriceFloat(reserve.assetId)?.toFixed(2) ?? ''}`}
+            {`$${toBalance(poolOracle.getPriceFloat(reserve.assetId)) ?? ''}`}
           </Typography>
         </Section>
       </Row>

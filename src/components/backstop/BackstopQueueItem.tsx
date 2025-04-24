@@ -14,11 +14,13 @@ import { PoolComponentProps } from '../common/PoolComponentProps';
 import { Row } from '../common/Row';
 
 export interface BackstopQueueItemProps extends PoolComponentProps {
+  version: Version;
   q4w: Q4W;
   inTokens: number;
   canUnqueue: boolean;
 }
 export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
+  version,
   q4w,
   inTokens,
   canUnqueue,
@@ -48,7 +50,7 @@ export const BackstopQueueItem: React.FC<BackstopQueueItemProps> = ({
   const isRestore =
     isLoading === false && simResult !== undefined && rpc.Api.isSimulationRestore(simResult);
 
-  const TOTAL_QUEUE_TIME_SECONDS = 21 * 24 * 60 * 60;
+  const TOTAL_QUEUE_TIME_SECONDS = version === Version.V1 ? 21 * 24 * 60 * 60 : 17 * 24 * 60 * 60;
 
   const [timeLeft, setTimeLeft] = useState<number>(
     Math.max(0, Number(q4w.exp) - Math.floor(Date.now() / 1000))

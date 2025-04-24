@@ -25,7 +25,7 @@ const Markets: NextPage = () => {
     if (isV2Enabled && lastPool?.version) {
       setVersion(lastPool.version);
     } else {
-      setVersion(Version.V1);
+      setVersion(Version.V2);
     }
   }, [isV2Enabled, lastPool]);
 

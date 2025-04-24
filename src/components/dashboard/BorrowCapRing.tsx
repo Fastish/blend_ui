@@ -19,7 +19,7 @@ export const BorrowCapRing: React.FC<BorrowCapRingProps> = ({ borrowLimit }) => 
           <PriorityHighIcon
             sx={{
               position: 'absolute',
-              left: 'calc(50% - 4px)',
+              left: 'calc(20% - 5.5px)',
             }}
             fontSize="small"
             color="error"
@@ -27,7 +27,7 @@ export const BorrowCapRing: React.FC<BorrowCapRingProps> = ({ borrowLimit }) => 
           <PriorityHighIcon
             sx={{
               position: 'absolute',
-              left: 'calc(50% + 2px)',
+              left: 'calc(20% + 1px)',
             }}
             fontSize="small"
             color="error"
@@ -41,7 +41,6 @@ export const BorrowCapRing: React.FC<BorrowCapRingProps> = ({ borrowLimit }) => 
           color="warning"
           sx={{
             position: 'absolute',
-            left: 'calc(50% - 1px)',
           }}
         />
       );
@@ -79,10 +78,9 @@ export const BorrowCapRing: React.FC<BorrowCapRingProps> = ({ borrowLimit }) => 
     >
       <Box
         sx={{
-          width: '100px',
           display: 'flex',
           flexDirection: 'row',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-start',
         }}
       >
         <Box
@@ -91,13 +89,12 @@ export const BorrowCapRing: React.FC<BorrowCapRingProps> = ({ borrowLimit }) => 
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            width: '50px',
+            width: '40px',
           }}
         >
           <CircularProgress
             sx={{
               color: getColorByCapacity(capacityPercentage),
-              marginLeft: '18px',
               position: 'absolute',
             }}
             size="30px"
@@ -108,7 +105,6 @@ export const BorrowCapRing: React.FC<BorrowCapRingProps> = ({ borrowLimit }) => 
           <CircularProgress
             sx={{
               color: getBackgroundByCapacity(capacityPercentage),
-              marginLeft: '18px',
               position: 'absolute',
             }}
             size="30px"
@@ -118,12 +114,10 @@ export const BorrowCapRing: React.FC<BorrowCapRingProps> = ({ borrowLimit }) => 
           />
           <Box
             style={{
-              position: 'absolute',
+              position: 'relative',
               width: '24px',
               height: '24px',
-              top: 'calc(50% - 12px)',
               padding: 'none !important',
-              left: 'calc(50% - 12px)',
               background: 'transparent',
               borderRadius: '50%',
               display: 'flex',
@@ -138,8 +132,7 @@ export const BorrowCapRing: React.FC<BorrowCapRingProps> = ({ borrowLimit }) => 
           sx={{
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'end',
-            width: '45px',
+            justifyContent: 'flex-start',
           }}
         >
           <HelpOutline

@@ -50,6 +50,7 @@ export const BackstopQueueMod: React.FC<PoolComponentProps> = ({ poolId }) => {
         {backstopUserData.balance.unlockedQ4W != BigInt(0) && (
           <BackstopQueueItem
             key={0}
+            version={poolMeta.version}
             poolId={poolId}
             q4w={{ exp: BigInt(0), amount: backstopUserData.balance.unlockedQ4W }}
             inTokens={FixedMath.toFloat(backstopUserData.balance.unlockedQ4W) * sharesToTokens}
@@ -70,6 +71,7 @@ export const BackstopQueueMod: React.FC<PoolComponentProps> = ({ poolId }) => {
             return (
               <BackstopQueueItem
                 key={Number(q4w.exp)}
+                version={poolMeta.version}
                 poolId={poolId}
                 q4w={q4w}
                 inTokens={FixedMath.toFloat(q4w.amount) * sharesToTokens}

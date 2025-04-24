@@ -33,7 +33,6 @@ import {
 import { getNetworkDetails as getFreighterNetwork } from '@stellar/freighter-api';
 import {
   Asset,
-  BASE_FEE,
   Networks,
   Operation,
   rpc,
@@ -56,6 +55,7 @@ export interface IWalletContext {
   lastTxFailure: string | undefined;
   txType: TxType;
   walletId: string | undefined;
+  txInclusionFee: InclusionFee;
 
   isLoading: boolean;
   connect: (handleSuccess: (success: boolean) => void) => Promise<void>;
@@ -115,6 +115,7 @@ export interface IWalletContext {
   faucet(): Promise<undefined>;
   createTrustlines(asset: Asset[]): Promise<void>;
   getNetworkDetails(): Promise<Network & { horizonUrl: string }>;
+  setTxInclusionFee: (inclusionFee: InclusionFee) => void;
 }
 
 export enum TxStatus {
@@ -131,6 +132,11 @@ export enum TxType {
   CONTRACT,
   // A transaction that is a pre-requisite for another transaction
   PREREQ,
+}
+
+export interface InclusionFee {
+  type: 'Low' | 'Medium' | 'High';
+  fee: string;
 }
 
 const walletKit: StellarWalletsKit = new StellarWalletsKit({
@@ -158,8 +164,6 @@ const walletKit: StellarWalletsKit = new StellarWalletsKit({
   ],
 });
 
-const TX_FEE = '100000';
-
 const WalletContext = React.createContext<IWalletContext | undefined>(undefined);
 
 export const WalletProvider = ({ children = null as any }) => {
@@ -177,6 +181,11 @@ export const WalletProvider = ({ children = null as any }) => {
   const [txHash, setTxHash] = useState<string | undefined>(undefined);
   const [txFailure, setTxFailure] = useState<string | undefined>(undefined);
   const [txType, setTxType] = useState<TxType>(TxType.CONTRACT);
+  const [txInclusionFee, setTxInclusionFee] = useState<InclusionFee>({
+    type: 'Medium',
+    fee: '2000',
+  });
+
   // wallet state
   const [walletAddress, setWalletAddress] = useState<string>('');
 
@@ -290,7 +299,7 @@ export const WalletProvider = ({ children = null as any }) => {
   async function restore(sim: rpc.Api.SimulateTransactionRestoreResponse): Promise<void> {
     let account = await stellarRpc.getAccount(walletAddress);
     setTxStatus(TxStatus.BUILDING);
-    let fee = parseInt(sim.restorePreamble.minResourceFee) + parseInt(BASE_FEE);
+    let fee = parseInt(sim.restorePreamble.minResourceFee) + parseInt(txInclusionFee.fee);
     let restore_tx = new TransactionBuilder(account, { fee: fee.toString() })
       .setNetworkPassphrase(network.passphrase)
       .setTimeout(0)
@@ -360,8 +369,8 @@ export const WalletProvider = ({ children = null as any }) => {
       const account = await stellarRpc.getAccount(walletAddress);
       const tx_builder = new TransactionBuilder(account, {
         networkPassphrase: network.passphrase,
-        fee: TX_FEE,
-        timebounds: { minTime: 0, maxTime: Math.floor(Date.now() / 1000) + 5 * 60 * 1000 },
+        fee: txInclusionFee.fee,
+        timebounds: { minTime: 0, maxTime: Math.floor(Date.now() / 1000) + 2 * 60 * 1000 },
       }).addOperation(operation);
       const transaction = tx_builder.build();
       const simulation = await stellarRpc.simulateTransaction(transaction);
@@ -373,12 +382,12 @@ export const WalletProvider = ({ children = null as any }) => {
     }
   }
 
-  async function invokeSorobanOperation<T>(operation: xdr.Operation, poolId?: string | undefined) {
+  async function invokeSorobanOperation<T>(operation: xdr.Operation) {
     try {
       const account = await stellarRpc.getAccount(walletAddress);
       const tx_builder = new TransactionBuilder(account, {
         networkPassphrase: network.passphrase,
-        fee: TX_FEE,
+        fee: txInclusionFee.fee,
         timebounds: { minTime: 0, maxTime: Math.floor(Date.now() / 1000) + 2 * 60 * 1000 },
       }).addOperation(operation);
       const transaction = tx_builder.build();
@@ -424,7 +433,7 @@ export const WalletProvider = ({ children = null as any }) => {
       if (sim) {
         return await simulateOperation(operation);
       }
-      await invokeSorobanOperation<Positions>(operation, poolMeta.id);
+      await invokeSorobanOperation<Positions>(operation);
       cleanPoolCache(poolMeta.id);
       cleanWalletCache();
     }
@@ -451,7 +460,7 @@ export const WalletProvider = ({ children = null as any }) => {
       if (sim) {
         return await simulateOperation(operation);
       }
-      await invokeSorobanOperation(operation, poolMeta.id);
+      await invokeSorobanOperation(operation);
       cleanPoolCache(poolMeta.id);
       cleanWalletCache();
     }
@@ -720,8 +729,8 @@ export const WalletProvider = ({ children = null as any }) => {
         const account = await stellarRpc.getAccount(walletAddress);
         const tx_builder = new TransactionBuilder(account, {
           networkPassphrase: network.passphrase,
-          fee: TX_FEE,
-          timebounds: { minTime: 0, maxTime: Math.floor(Date.now() / 1000) + 5 * 60 * 1000 },
+          fee: txInclusionFee.fee,
+          timebounds: { minTime: 0, maxTime: Math.floor(Date.now() / 1000) + 2 * 60 * 1000 },
         });
         for (let asset of assets) {
           const trustlineOperation = Operation.changeTrust({
@@ -771,6 +780,7 @@ export const WalletProvider = ({ children = null as any }) => {
         txType,
         walletId: autoConnect,
         isLoading: loading,
+        txInclusionFee,
         connect,
         disconnect,
         clearLastTx,
@@ -788,6 +798,7 @@ export const WalletProvider = ({ children = null as any }) => {
         faucet,
         createTrustlines,
         getNetworkDetails,
+        setTxInclusionFee,
       }}
     >
       {children}

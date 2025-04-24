@@ -67,6 +67,7 @@ export const BackstopPreviewBar: React.FC<PoolComponentProps> = ({ poolId }) => 
             alignItems: 'center',
             backgroundColor: theme.palette.background.default,
             borderRadius: '5px',
+            width: '110px',
           }}
         >
           <PoolStatusBox titleColor="inherit" type="large" status={pool?.metadata?.status} />
@@ -76,8 +77,7 @@ export const BackstopPreviewBar: React.FC<PoolComponentProps> = ({ poolId }) => 
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginLeft: 'auto',
-            marginRight: '23px',
+            marginLeft: '50px',
           }}
         >
           <StackedText

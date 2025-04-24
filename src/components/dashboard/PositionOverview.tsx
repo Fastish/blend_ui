@@ -32,7 +32,7 @@ import { StackedText } from '../common/StackedText';
 import { BorrowCapRing } from './BorrowCapRing';
 
 export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
-  const { viewType, network } = useSettings();
+  const { viewType } = useSettings();
   const theme = useTheme();
   const { connected, walletAddress, poolClaim, createTrustlines, restore } = useWallet();
 
@@ -240,8 +240,9 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
         <Box
           sx={{
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'flex-start',
             alignItems: 'center',
+            width: '110px',
           }}
         >
           <StackedText
@@ -263,7 +264,7 @@ export const PositionOverview: React.FC<PoolComponentProps> = ({ poolId }) => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginLeft: isRegularViewType ? 'auto' : '18px',
+            marginLeft: isRegularViewType ? '50px' : '18px',
           }}
         >
           <StackedText

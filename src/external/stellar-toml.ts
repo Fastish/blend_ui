@@ -29,6 +29,18 @@ export async function getTokenMetadataFromTOML(
     const assetCode = tokenMetadata.asset.code;
     const assetIssuer = tokenMetadata.asset.issuer;
     const assetId = `${assetCode}:${assetIssuer}`;
+
+    if (
+      assetCode === 'EURC' &&
+      assetIssuer === 'GDHU6WRG4IEQXM5NZ4BMPKOXHW76MZM4Y2IEMFDVXBSDP6SJY4ITNPP2'
+    ) {
+      // Circle's TOML for EURC is blocked by CORS, so we can't load it
+      // just short circuit the results here
+      return {
+        domain: 'circle.io',
+        image: `https://www.circle.com/eurc-icon`,
+      };
+    }
     try {
       const cachedData = localStorage.getItem(assetId);
       if (cachedData) {
@@ -52,32 +64,6 @@ export async function getTokenMetadataFromTOML(
           image: undefined,
         };
       }
-      // if (tokenAccountHomeDomain === 'circle.com') {
-      //   stellarToml = await fetch('https://www.circle.com/hubfs/stellar.toml.txt')
-      //     .then((response) => response.text())
-      //     .then(async (text) => {
-      //       try {
-      //         const tomlObject = toml.parse(text);
-      //         return Promise.resolve(tomlObject);
-      //       } catch (e: any) {
-      //         return Promise.reject(
-      //           new Error(
-      //             `stellar.toml is invalid - Parsing error on line ${e.line}, column ${e.column}: ${e.message}`
-      //           )
-      //         );
-      //       }
-      //     })
-      //     .catch((err: Error) => {
-      //       if (err.message.match(/^maxContentLength size/)) {
-      //         throw new Error(`stellar.toml file exceeds allowed size`);
-      //       } else {
-      //         throw err;
-      //       }
-      //     });
-      // } else {
-      //   /* 2. Use their domain from their API account and use it attempt to load their stellar.toml */
-      //   stellarToml = await StellarToml.Resolver.resolve(tokenAccountHomeDomain || '', {});
-      // }
       stellarToml = await StellarToml.Resolver.resolve(tokenAccountHomeDomain || '', {});
       if (stellarToml.CURRENCIES) {
         /* If we find some currencies listed, check to see if they have the currency we're looking for listed */
